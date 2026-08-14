@@ -168,9 +168,11 @@ Agent 5 คน × 50 tickets/วัน = ~25,750 reads/วัน (จาก queu
 
 | ทีมเลือก | สถานะ |
 |---|---|
-| **A · Supabase** | ใช้ `architecture.md` ที่มีอยู่ได้เลย ไม่ต้องแก้ |
-| **C · Firebase** | ผมเขียน architecture ใหม่ทั้งหมด: denormalization plan, security rules, quota budgeting, queue view แบบ Firestore |
-| **B · Cloudflare** | แก้ได้เหมือนกัน แต่เตือนไว้ก่อนว่า D1 + V8 runtime จะมี friction |
+| **A · Supabase** | ✅ **เลือกแล้ว (2026-08-14)** — ใช้ `architecture.md` ที่มีอยู่ได้เลย ไม่ต้องแก้ |
+| **C · Firebase** | ❌ ผมเขียน architecture ใหม่ทั้งหมด: denormalization plan, security rules, quota budgeting, queue view แบบ Firestore |
+| **B · Cloudflare** | ❌ แก้ได้เหมือนกัน แต่เตือนไว้ก่อนว่า D1 + V8 runtime จะมี friction |
+
+> **บันทึกการตัดสินใจ:** ดูรายละเอียดใน `ADR-001-stack.md` (Context, Decision, Consequences, Alternatives considered)
 
 ---
 
