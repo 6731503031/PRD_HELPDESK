@@ -1,0 +1,288 @@
+{
+  "info": {
+    "name": "Helpdesk Ticket CRUD — Assignment 2",
+    "description": "Cloudflare Workers + Hono + D1. Auth = stub headers (x-user-id, x-user-role).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8787", "type": "string" },
+    { "key": "customer_id", "value": "1", "type": "string" },
+    { "key": "agent_id", "value": "3", "type": "string" },
+    { "key": "category_id", "value": "1", "type": "string" },
+    { "key": "ticket_id", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /  (health)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] }
+          }
+        },
+        {
+          "name": "GET /categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "GET /users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "GET /tags",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/tags", "host": ["{{base_url}}"], "path": ["tags"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ticket CRUD",
+      "item": [
+        {
+          "name": "POST /tickets  (Create as customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{customer_id}}" },
+              { "key": "x-user-role", "value": "customer" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Wi-Fi หอพักใช้ไม่ได้\",\n  \"description\": \"ลองต่อ Wi-Fi หอพักแล้วขึ้น limited access มาตั้งแต่เมื่อคืน\",\n  \"category_id\": 1,\n  \"priority\": \"high\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "POST /tickets  (Create as agent, assign to self)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"เครื่องปริ้นเสีย ตึก IT\",\n  \"description\": \"ปริ้นไม่ออก กระดาษติด\",\n  \"category_id\": 2,\n  \"priority\": \"medium\",\n  \"customer_id\": 2,\n  \"assigned_agent_id\": 3\n}"
+            },
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "GET /tickets  (List as agent — sees all)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "GET /tickets  (List as customer — sees only own)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "{{customer_id}}" },
+              { "key": "x-user-role", "value": "customer" }
+            ],
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "GET /tickets  (Filter: status=open&priority=high)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tickets?status=open&priority=high",
+              "host": ["{{base_url}}"],
+              "path": ["tickets"],
+              "query": [
+                { "key": "status", "value": "open" },
+                { "key": "priority", "value": "high" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /tickets/:id  (Read one)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}"] }
+          }
+        },
+        {
+          "name": "PATCH /tickets/:id  (Customer edits title)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{customer_id}}" },
+              { "key": "x-user-role", "value": "customer" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Wi-Fi หอพักใช้ไม่ได้ (แก้ชื่อ)\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}"] }
+          }
+        },
+        {
+          "name": "PATCH /tickets/:id  (Agent changes priority + status)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"priority\": \"urgent\",\n  \"status\": \"in_progress\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}"] }
+          }
+        },
+        {
+          "name": "PUT /tickets/:id  (Full update)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"อัปเดตใหม่ทั้งหมด\",\n  \"description\": \"อธิบายใหม่\",\n  \"priority\": \"medium\",\n  \"status\": \"assigned\",\n  \"category_id\": 3\n}"
+            },
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}"] }
+          }
+        },
+        {
+          "name": "POST /tickets/:id/assign  (Agent assigns)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"agent_id\": 4\n}" },
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}/assign", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}", "assign"] }
+          }
+        },
+        {
+          "name": "POST /tickets/:id/resolve  (Agent resolves)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"resolution_note\": \"รีเซ็ตเราท์เตอร์ชั้น 3 แล้วใช้ได้ปกติ\"\n}" },
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}/resolve", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}", "resolve"] }
+          }
+        },
+        {
+          "name": "DELETE /tickets/:id  (Admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "x-user-id", "value": "5" },
+              { "key": "x-user-role", "value": "admin" }
+            ],
+            "url": { "raw": "{{base_url}}/tickets/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["tickets", "{{ticket_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative tests",
+      "item": [
+        {
+          "name": "POST /tickets  (Missing required fields — expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "{{customer_id}}" },
+              { "key": "x-user-role", "value": "customer" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"test\"\n}" },
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "POST /tickets  (Customer creating for others — expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-user-id", "value": "1" },
+              { "key": "x-user-role", "value": "customer" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"x\",\n  \"description\": \"y\",\n  \"category_id\": 1,\n  \"customer_id\": 2\n}" },
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        },
+        {
+          "name": "GET /tickets/:id  (Customer reads other's ticket — expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "2" },
+              { "key": "x-user-role", "value": "customer" }
+            ],
+            "url": { "raw": "{{base_url}}/tickets/1", "host": ["{{base_url}}"], "path": ["tickets", "1"] }
+          }
+        },
+        {
+          "name": "GET /tickets/:id  (Not found — expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-user-id", "value": "{{agent_id}}" },
+              { "key": "x-user-role", "value": "agent" }
+            ],
+            "url": { "raw": "{{base_url}}/tickets/99999", "host": ["{{base_url}}"], "path": ["tickets", "99999"] }
+          }
+        },
+        {
+          "name": "No auth headers — expect 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/tickets", "host": ["{{base_url}}"], "path": ["tickets"] }
+          }
+        }
+      ]
+    }
+  ]
+}

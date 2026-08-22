@@ -1,0 +1,23 @@
+{
+  "name": "crud-assign2-helpdesk",
+  "version": "1.0.0",
+  "description": "Helpdesk Ticket CRUD - Cloudflare Workers + Hono + D1 (Assignment 2)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 execute helpdesk-db --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute helpdesk-db --remote --file=./schema.sql",
+    "db:local:create": "wrangler d1 create helpdesk-db",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240605.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.65.0"
+  },
+  "dependencies": {
+    "hono": "^4.4.0"
+  }
+}

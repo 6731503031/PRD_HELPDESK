@@ -1,0 +1,20 @@
+name = "helpdesk-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+
+# D1 binding — database_id ได้จาก `wrangler d1 create helpdesk-db`
+# หมายเหตุ: Cloudflare แนะนำชื่อ binding เป็น "helpdesk_db" แต่โค้ดใช้ "DB" → คงไว้เป็น "DB" ให้ตรงกับ c.env.DB
+[[d1_databases]]
+binding = "DB"
+database_name = "helpdesk-db"
+database_id = "6d23b683-65e9-4f84-b445-e555520ca9c6"
+
+# Local dev (optional) — ใช้ตอน wrangler dev
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "helpdesk-db-local"
+# database_id = "local"
