@@ -11,7 +11,7 @@ ENVIRONMENT = "development"
 [[d1_databases]]
 binding = "DB"
 database_name = "helpdesk-db"
-database_id = "6d23b683-65e9-4f84-b445-e555520ca9c6"
+database_id = "0979f6e1-5381-4b7e-867b-5265e4f8c6dc"
 
 # Local dev (optional) — ใช้ตอน wrangler dev
 # [[d1_databases]]

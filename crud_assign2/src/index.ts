@@ -30,6 +30,7 @@ import {
   USER_DIRECTORY,
   type Role,
 } from './identity';
+import { NodeStyleServer } from 'cloudflare:node';
 
 // ===== Types =====
 type Bindings = {
@@ -213,7 +214,7 @@ app.post('/tickets', async (c) => {
       : 'medium';
 
   // customer_id default = current user (ถ้าเป็น customer)
-  const user = c.get('user') as { id: number; role: Role };
+  const user = c.get('user' as never) as { id: number; role: Role };
   let customerId = body.customer_id;
   if (!customerId) customerId = user.id;
 
@@ -277,7 +278,7 @@ app.post('/tickets', async (c) => {
 
 // LIST
 app.get('/tickets', async (c) => {
-  const user = c.get('user') as { id: number; role: Role };
+  const user = c.get('user' as never) as { id: number; role: Role };
 
   const status = c.req.query('status');
   const priority = c.req.query('priority');
@@ -394,7 +395,7 @@ app.patch('/tickets/:id', async (c) => {
     return c.json({ error: 'NotFound', message: 'ไม่พบ ticket' }, 404);
   }
 
-  const user = c.get('user') as { id: number; role: Role };
+  const user = c.get('user' as never) as { id: number; role: Role };
 
   // Authorization
   if (user.role === 'customer' && existing.customer_id !== user.id) {
@@ -472,7 +473,7 @@ app.delete('/tickets/:id', async (c) => {
     return c.json({ error: 'BadRequest', message: 'id ไม่ถูกต้อง' }, 400);
   }
 
-  const user = c.get('user') as { id: number; role: Role };
+  const user = c.get('user'as never) as { id: number; role: Role };
   const existing = await c.env.DB.prepare('SELECT * FROM tickets WHERE id = ?')
     .bind(id)
     .first<Ticket>();
@@ -504,7 +505,7 @@ app.delete('/tickets/:id', async (c) => {
 // ASSIGN (Agent only)
 app.post('/tickets/:id/assign', async (c) => {
   const id = Number(c.req.param('id'));
-  const user = c.get('user') as { id: number; role: Role };
+  const user = c.get('user'as never) as { id: number; role: Role };
 
   if (user.role === 'customer') {
     return c.json({ error: 'Forbidden', message: 'customer assign ticket ไม่ได้' }, 403);
@@ -549,7 +550,7 @@ app.post('/tickets/:id/assign', async (c) => {
 // RESOLVE (Agent only)
 app.post('/tickets/:id/resolve', async (c) => {
   const id = Number(c.req.param('id'));
-  const user = c.get('user') as { id: number; role: Role };
+  const user = c.get('user'as never) as { id: number; role: Role };
 
   if (user.role === 'customer') {
     return c.json({ error: 'Forbidden', message: 'customer resolve ticket ไม่ได้' }, 403);
@@ -572,7 +573,7 @@ app.post('/tickets/:id/resolve', async (c) => {
            updated_at = datetime('now')
        WHERE id = ?`,
   )
-    .bind(body.resolution_note ?? null, id)
+    .bind((body as any).resolution_note ?? null, id)
     .run();
 
   const updated = await c.env.DB.prepare('SELECT * FROM tickets WHERE id = ?')
