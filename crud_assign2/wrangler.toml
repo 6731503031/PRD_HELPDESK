@@ -5,6 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "development"
+WELLBEING_API_URL = "https://wellbeing-intake.vercel.app/api/v1"
 
 # D1 binding — database_id ได้จาก `wrangler d1 create helpdesk-db`
 # หมายเหตุ: Cloudflare แนะนำชื่อ binding เป็น "helpdesk_db" แต่โค้ดใช้ "DB" → คงไว้เป็น "DB" ให้ตรงกับ c.env.DB

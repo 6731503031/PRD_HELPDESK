@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   customer_id INTEGER NOT NULL,                 -- FK (logical) → Identity.user
   assigned_agent_id INTEGER,                    -- FK (logical) → Identity.user
   resolution_note TEXT,
+  wellbeing_service_slug TEXT,                  -- A5: public Wellbeing service ref (Team16 contract §2) — NOT a case/appointment ID
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   resolved_at TEXT,

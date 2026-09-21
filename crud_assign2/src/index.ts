@@ -35,6 +35,7 @@ import { NodeStyleServer } from 'cloudflare:node';
 // ===== Types =====
 type Bindings = {
   DB: D1Database;
+  WELLBEING_API_URL: string;
 };
 
 type Ticket = {
@@ -48,6 +49,7 @@ type Ticket = {
   customer_id: number;
   assigned_agent_id: number | null;
   resolution_note: string | null;
+  wellbeing_service_slug: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
@@ -144,9 +146,11 @@ app.get('/', (c) =>
       'GET    /categories',
       'GET    /users',
       'GET    /tags',
+      'GET    /wellbeing/services',
       'POST   /tickets',
       'GET    /tickets',
       'GET    /tickets/:id',
+      'GET    /tickets/:id/wellbeing-suggestion',
       'PATCH  /tickets/:id',
       'PUT    /tickets/:id',
       'DELETE /tickets/:id',
@@ -180,6 +184,135 @@ app.get('/users', async (c) => {
 app.get('/tags', async (c) => {
   const { results } = await c.env.DB.prepare('SELECT id, name FROM tags ORDER BY id').all();
   return c.json({ count: results?.length ?? 0, data: results });
+});
+
+// ===== Wellbeing integration (A5) =====
+// Proxies Team16's public Service Catalogue (GET /services) server-side, because
+// Team16 sends no CORS headers. Only public catalogue data crosses this boundary —
+// no student case/appointment/status ever does (Integration Contract §2).
+type WellbeingService = {
+  id: string;
+  slug: string;
+  name: string;
+  whatFor: string;
+  firstSession: string;
+  whoWillKnow: string;
+};
+
+const WELLBEING_CACHE_TTL_SECONDS = 600; // catalogue is static demo data — safe to cache
+const WELLBEING_TIMEOUT_MS = 3000; // per Team16's operational recommendation (§9)
+
+async function getWellbeingCatalogue(
+  c: any,
+): Promise<{ services: WellbeingService[]; degraded: boolean }> {
+  const cache = caches.default;
+  const cacheKey = new Request('https://internal-cache.local/wellbeing-services');
+
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const cachedBody = await cached.json<{ services: WellbeingService[] }>();
+    return { services: cachedBody.services, degraded: false };
+  }
+
+  const correlationId = `team14-a5-${crypto.randomUUID()}`;
+  const fetchOnce = () =>
+    fetch(`${c.env.WELLBEING_API_URL}/services`, {
+      headers: { 'X-Correlation-Id': correlationId },
+      signal: AbortSignal.timeout(WELLBEING_TIMEOUT_MS),
+    });
+
+  let upstream: Response;
+  try {
+    upstream = await fetchOnce();
+    if (!upstream.ok) throw new Error(`upstream status ${upstream.status}`);
+  } catch {
+    // GET is safe to retry (§9) — one short-backoff retry before giving up.
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      upstream = await fetchOnce();
+      if (!upstream.ok) throw new Error(`upstream status ${upstream.status}`);
+    } catch {
+      // Wellbeing unavailable — never block the core Helpdesk ticket workflow.
+      return { services: [], degraded: true };
+    }
+  }
+
+  const upstreamBody = await upstream.json<{ services: WellbeingService[] }>();
+  const cacheResponse = new Response(JSON.stringify({ services: upstreamBody.services }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': `public, max-age=${WELLBEING_CACHE_TTL_SECONDS}`,
+    },
+  });
+  c.executionCtx.waitUntil(cache.put(cacheKey, cacheResponse));
+
+  return { services: upstreamBody.services, degraded: false };
+}
+
+app.get('/wellbeing/services', async (c) => {
+  const { services, degraded } = await getWellbeingCatalogue(c);
+  return c.json({ services, degraded });
+});
+
+// Keyword → slug heuristic, approximating Team16's guidance (contract §2): tickets
+// about stress, health, injury, or money worries may warrant a Wellbeing suggestion.
+// No ticket_categories row maps to these topics today, so matching runs on free text.
+const WELLBEING_KEYWORD_MAP: Record<string, string[]> = {
+  counselling: [
+    'stress', 'anxious', 'anxiety', 'depress', 'overwhelm', 'grief',
+    'lonely', 'mental health', 'counsel', 'sad', 'panic',
+  ],
+  'health-clinic': [
+    'sick', 'ill', 'flu', 'fever', 'medical certificate', 'vaccin',
+    'injury', 'hurt', 'unwell', 'nurse', 'clinic',
+  ],
+  physiotherapy: [
+    'back pain', 'neck pain', 'sports injury', 'sprain', 'physio', 'muscle', 'posture',
+  ],
+  'wellbeing-advising': [
+    'money', 'financial', 'sleep', 'homesick', 'settling in',
+    'work-life', 'study-life', 'balance', 'debt',
+  ],
+};
+
+function matchWellbeingService(
+  ticket: Pick<Ticket, 'title' | 'description'>,
+  services: WellbeingService[],
+): WellbeingService | null {
+  const text = `${ticket.title} ${ticket.description}`.toLowerCase();
+  for (const [slug, keywords] of Object.entries(WELLBEING_KEYWORD_MAP)) {
+    if (keywords.some((kw) => text.includes(kw))) {
+      return services.find((s) => s.slug === slug) ?? null;
+    }
+  }
+  return null;
+}
+
+// Suggest a Wellbeing service for an existing ticket. Read-only: the agent still
+// decides whether to accept it via PATCH /tickets/:id { wellbeing_service_slug }.
+app.get('/tickets/:id/wellbeing-suggestion', async (c) => {
+  const id = Number(c.req.param('id'));
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ error: 'BadRequest', message: 'id ไม่ถูกต้อง' }, 400);
+  }
+
+  const ticket = await c.env.DB.prepare('SELECT * FROM tickets WHERE id = ?')
+    .bind(id)
+    .first<Ticket>();
+  if (!ticket) {
+    return c.json({ error: 'NotFound', message: 'ไม่พบ ticket' }, 404);
+  }
+
+  const access = await canAccessTicket(c, ticket);
+  if (!access.allowed) {
+    return c.json({ error: 'Forbidden', message: access.reason }, 403);
+  }
+
+  const { services, degraded } = await getWellbeingCatalogue(c);
+  const suggested = degraded ? null : matchWellbeingService(ticket, services);
+
+  return c.json({ ticket_id: id, suggested_service: suggested, degraded });
 });
 
 // ===== Ticket CRUD =====
@@ -410,6 +543,7 @@ app.patch('/tickets/:id', async (c) => {
     'category_id',
     'assigned_agent_id',
     'resolution_note',
+    'wellbeing_service_slug',
   ];
 
   const body = await c.req.json<Record<string, any>>();

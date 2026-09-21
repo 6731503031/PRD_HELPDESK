@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>Helpdesk × Wellbeing — Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1rem; margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
+  fieldset { margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; }
+  label { display: block; font-size: .85rem; margin-top: .5rem; }
+  input, select, textarea { width: 100%; padding: .4rem; margin-top: .2rem; box-sizing: border-box; }
+  button { margin-top: .6rem; padding: .5rem 1rem; cursor: pointer; }
+  .ticket { border: 1px solid #ddd; border-radius: 6px; padding: .6rem .8rem; margin-bottom: .5rem; cursor: pointer; }
+  .ticket:hover { background: #f7f7f7; }
+  .wellbeing-box { border: 1px solid #8ab; background: #eef4fb; border-radius: 6px; padding: .8rem; margin-top: .5rem; }
+  .wellbeing-box.degraded { border-color: #c88; background: #fbeeee; }
+  .muted { color: #777; font-size: .85rem; }
+  .error { color: #b00; font-size: .85rem; }
+  a.wb-link { display: inline-block; margin-top: .4rem; }
+</style>
+</head>
+<body>
+
+<h1>Helpdesk × Wellbeing — Integration Demo (A5)</h1>
+<p class="muted">
+  หน้านี้เป็น demo แบบง่ายสำหรับแสดง flow: Helpdesk ticket → เรียก Helpdesk backend
+  → backend เรียก Wellbeing (Team16) service catalogue → แสดง suggestion ให้ agent เลือกแนบกับ ticket.
+  ไม่มีการอ่าน/เก็บข้อมูล case ส่วนตัวของ Wellbeing ใดๆ ในหน้านี้.
+</p>
+
+<fieldset>
+  <legend>การเชื่อมต่อ</legend>
+  <label>Helpdesk API Base URL
+    <input id="apiBase" value="https://helpdesk-api.team-helpdesk.workers.dev" />
+  </label>
+  <label>x-user-id (ทดสอบ: 1/2=customer, 3/4=agent, 5=admin)
+    <input id="userId" type="number" value="3" />
+  </label>
+  <label>x-user-role
+    <select id="userRole">
+      <option value="agent" selected>agent</option>
+      <option value="customer">customer</option>
+      <option value="admin">admin</option>
+    </select>
+  </label>
+</fieldset>
+
+<h2>สร้าง Ticket ใหม่ (ทดสอบ matching)</h2>
+<fieldset>
+  <label>Title <input id="newTitle" placeholder="เช่น Feeling very anxious about exams" /></label>
+  <label>Description <textarea id="newDesc" rows="2" placeholder="รายละเอียด"></textarea></label>
+  <label>Category
+    <select id="newCategory"></select>
+  </label>
+  <button onclick="createTicket()">สร้าง Ticket</button>
+  <div id="createError" class="error"></div>
+</fieldset>
+
+<h2>รายการ Ticket</h2>
+<button onclick="loadTickets()">โหลด/รีเฟรช</button>
+<div id="ticketList"></div>
+
+<h2>รายละเอียด + Wellbeing Suggestion</h2>
+<div id="ticketDetail" class="muted">เลือก ticket จากรายการด้านบน</div>
+
+<script>
+function headers(extra) {
+  return Object.assign({
+    'x-user-id': document.getElementById('userId').value,
+    'x-user-role': document.getElementById('userRole').value,
+  }, extra || {});
+}
+function apiBase() {
+  return document.getElementById('apiBase').value.replace(/\/$/, '');
+}
+
+async function loadCategories() {
+  const res = await fetch(apiBase() + '/categories');
+  const body = await res.json();
+  const sel = document.getElementById('newCategory');
+  sel.innerHTML = (body.data || [])
+    .map((c) => `<option value="${c.id}">${c.name}</option>`)
+    .join('');
+}
+
+async function createTicket() {
+  document.getElementById('createError').textContent = '';
+  const title = document.getElementById('newTitle').value.trim();
+  const description = document.getElementById('newDesc').value.trim();
+  const category_id = Number(document.getElementById('newCategory').value);
+  if (!title || !description) {
+    document.getElementById('createError').textContent = 'กรอก title และ description ก่อน';
+    return;
+  }
+  const res = await fetch(apiBase() + '/tickets', {
+    method: 'POST',
+    headers: headers({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ title, description, category_id }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    document.getElementById('createError').textContent = body.message || 'สร้างไม่สำเร็จ';
+    return;
+  }
+  document.getElementById('newTitle').value = '';
+  document.getElementById('newDesc').value = '';
+  await loadTickets();
+  await showTicket(body.data.id);
+}
+
+async function loadTickets() {
+  const res = await fetch(apiBase() + '/tickets', { headers: headers() });
+  const body = await res.json();
+  const list = document.getElementById('ticketList');
+  if (!res.ok) {
+    list.innerHTML = `<div class="error">${body.message || 'โหลดไม่สำเร็จ (ต้องมี x-user-id/x-user-role ที่ถูกต้อง)'}</div>`;
+    return;
+  }
+  list.innerHTML = (body.data || [])
+    .map(
+      (t) => `<div class="ticket" onclick="showTicket(${t.id})">
+        <strong>${t.ticket_number}</strong> — ${t.title}
+        <div class="muted">status: ${t.status} · wellbeing_service_slug: ${t.wellbeing_service_slug ?? '(none)'}</div>
+      </div>`,
+    )
+    .join('') || '<div class="muted">ยังไม่มี ticket</div>';
+}
+
+async function showTicket(id) {
+  const detail = document.getElementById('ticketDetail');
+  detail.innerHTML = 'กำลังโหลด...';
+
+  const [ticketRes, suggestionRes] = await Promise.all([
+    fetch(`${apiBase()}/tickets/${id}`, { headers: headers() }),
+    fetch(`${apiBase()}/tickets/${id}/wellbeing-suggestion`, { headers: headers() }),
+  ]);
+  const ticketBody = await ticketRes.json();
+  const suggestionBody = await suggestionRes.json();
+
+  if (!ticketRes.ok) {
+    detail.innerHTML = `<div class="error">${ticketBody.message || 'โหลด ticket ไม่สำเร็จ'}</div>`;
+    return;
+  }
+
+  const t = ticketBody.data;
+  let wbHtml;
+  if (suggestionBody.degraded) {
+    wbHtml = `<div class="wellbeing-box degraded">
+      Wellbeing API ไม่ตอบสนองตอนนี้ — Helpdesk ticket ยังใช้งานได้ปกติ (ไม่มี suggestion ให้ตอนนี้)
+    </div>`;
+  } else if (suggestionBody.suggested_service) {
+    const s = suggestionBody.suggested_service;
+    const isAgent = ['agent', 'admin'].includes(document.getElementById('userRole').value);
+    wbHtml = `<div class="wellbeing-box">
+      <strong>Wellbeing suggestion: ${s.name}</strong>
+      <p>${s.whatFor}</p>
+      <p class="muted"><em>First session:</em> ${s.firstSession}</p>
+      <p class="muted"><em>Who will know:</em> ${s.whoWillKnow}</p>
+      <a class="wb-link" href="https://wellbeing-intake.vercel.app" target="_blank">ไปที่ Wellbeing →</a>
+      ${
+        isAgent
+          ? `<div><button onclick="attachSuggestion(${t.id}, '${s.slug}')">แนบ service นี้กับ ticket</button></div>`
+          : ''
+      }
+    </div>`;
+  } else {
+    wbHtml = `<div class="wellbeing-box">ไม่มี Wellbeing service ที่เกี่ยวข้องกับ ticket นี้</div>`;
+  }
+
+  detail.innerHTML = `
+    <div><strong>${t.ticket_number}</strong> — ${t.title}</div>
+    <div class="muted">${t.description}</div>
+    <div class="muted">status: ${t.status} · priority: ${t.priority} · wellbeing_service_slug: ${t.wellbeing_service_slug ?? '(none)'}</div>
+    ${wbHtml}
+  `;
+}
+
+async function attachSuggestion(ticketId, slug) {
+  const res = await fetch(`${apiBase()}/tickets/${ticketId}`, {
+    method: 'PATCH',
+    headers: headers({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ wellbeing_service_slug: slug }),
+  });
+  if (res.ok) {
+    await loadTickets();
+    await showTicket(ticketId);
+  }
+}
+
+loadCategories();
+loadTickets();
+</script>
+</body>
+</html>
