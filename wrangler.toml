@@ -1,0 +1,34 @@
+name = "helpdesk-api"
+main = "backend/src/index.ts"
+compatibility_date = "2024-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Web UI (public/ = built from frontend/) — served by Workers Static Assets; API requests fall through to the Worker.
+[assets]
+directory = "./public"
+
+# Workers AI — AI triage, code in backend/src/ai/ (P4). Free tier; no API key.
+[ai]
+binding = "AI"
+
+# PRD §14 escalation check every 15 minutes (P2)
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+ENVIRONMENT = "development"
+WELLBEING_API_URL = "https://wellbeing-intake.vercel.app/api/v1"
+# Team 10 base URL — fill in after Team 10 replies (P3)
+MAINTENANCE_API_URL = ""
+# Notification Hub endpoint for outbound events — empty = outbox only (P2)
+EVENT_HUB_URL = ""
+
+# Secrets (never commit):
+#   wrangler secret put MAINTENANCE_WEBHOOK_SECRET
+#   wrangler secret put EVENT_SIGNING_SECRET
+# Local dev: put them in .dev.vars (git-ignored)
+
+[[d1_databases]]
+binding = "DB"
+database_name = "helpdesk-db"
+database_id = "0979f6e1-5381-4b7e-867b-5265e4f8c6dc"

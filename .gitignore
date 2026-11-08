@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# secrets + wrangler local state
+.dev.vars
+.dev.vars.*
+.wrangler/
+
+# build output (npm run build:web → served by the Worker)
+public/
+dist/
+build/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

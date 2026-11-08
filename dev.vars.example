@@ -1,0 +1,2 @@
+MAINTENANCE_WEBHOOK_SECRET=dev-secret
+EVENT_SIGNING_SECRET=dev-event-secret
