@@ -8,6 +8,29 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
 };
 export const STATUS_ORDER: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 
+/** Old rows from Assignment 2 can still say 'assigned' (agent role is gone): treat as in progress. */
+export function normalizeStatus(value: string): TicketStatus {
+  return value === 'assigned' ? 'in_progress' : (value as TicketStatus);
+}
+/** Label for any status string, including history rows written before v1.1. */
+export const statusLabel = (value: string) => STATUS_LABEL[normalizeStatus(value)] ?? value;
+
+/**
+ * Team 10 Work Order status → what the requester reads (Use Case doc §7.2).
+ * Status names still to be confirmed by Team 10; unknown values fall back to the raw text.
+ */
+const MAINTENANCE_LABEL: Record<string, string> = {
+  reported: 'ส่งต่อฝ่ายซ่อมบำรุงแล้ว',
+  assigned: 'ส่งต่อฝ่ายซ่อมบำรุงแล้ว',
+  in_progress: 'ช่างกำลังดำเนินการ',
+  completed: 'ซ่อมเสร็จแล้ว รอผู้ดูแลยืนยัน',
+  closed: 'ซ่อมเสร็จแล้ว รอผู้ดูแลยืนยัน',
+  cancelled: 'ฝ่ายซ่อมบำรุงยกเลิกใบงาน',
+};
+export const maintenanceLabel = (value: string | null) =>
+  value ? MAINTENANCE_LABEL[value] ?? value : 'รอการตอบรับจากฝ่ายซ่อมบำรุง';
+export const isRepairDone = (value: string | null) => value === 'completed' || value === 'closed';
+
 export const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'ต่ำ',
   medium: 'ปกติ',

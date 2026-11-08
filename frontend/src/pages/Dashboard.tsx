@@ -12,20 +12,28 @@ import { TicketDetail } from '../components/TicketDetail';
 import { TicketTable } from '../components/TicketTable';
 import { ErrorNotice, Loading, Panel } from '../components/ui';
 import { useIdentity } from '../auth/identity';
-import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER } from '../lib/format';
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, isRepairDone } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 
-type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'done';
+type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'repaired' | 'done';
 
 const isActive = (t: Ticket) => t.status === 'open' || t.status === 'in_progress';
 
+/** Cards follow the admin's work: triage (UC-07) → Team 10 (UC-08/11) → resolve (UC-09). */
 const VIEWS: Record<View, { label: string; test: (t: Ticket) => boolean }> = {
   active: { label: 'ยังไม่ปิด', test: isActive },
-  waiting: { label: 'รอเริ่มดำเนินการ', test: (t) => t.status === 'open' },
+  waiting: { label: 'รอคัดกรอง', test: (t) => t.status === 'open' },
   urgent: { label: 'ด่วนมาก ยังไม่เริ่ม', test: (t) => t.status === 'open' && t.priority === 'urgent' },
-  maintenance: { label: 'ส่งต่อซ่อมบำรุง', test: (t) => isActive(t) && !!t.maintenance_work_order_id },
+  maintenance: {
+    label: 'อยู่ระหว่างซ่อม',
+    test: (t) => isActive(t) && !!t.maintenance_work_order_id && !isRepairDone(t.maintenance_status),
+  },
+  repaired: { label: 'ซ่อมเสร็จ รอปิดงาน', test: (t) => isActive(t) && isRepairDone(t.maintenance_status) },
   done: { label: 'แก้ไขแล้ว', test: (t) => t.status === 'resolved' || t.status === 'closed' },
 };
+const CARDS: View[] = ['active', 'waiting', 'urgent', 'maintenance', 'repaired', 'done'];
+/** Cards that turn red when they are not empty: work someone is waiting on. */
+const ALERT: View[] = ['urgent', 'repaired'];
 
 const STATUS_COLOR: Record<TicketStatus, string> = {
   open: 'var(--st-open)',
@@ -42,7 +50,6 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
   const [search, setSearch] = useState('');
 
   const all = data ?? [];
-  const cards: View[] = ['active', 'waiting', 'urgent', 'maintenance', 'done'];
   const count = (v: View) => all.filter((t) => VIEWS[v].test(t)).length;
 
   const rows = useMemo(() => {
@@ -87,12 +94,12 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
       ) : (
         <>
           <div className="stats" role="group" aria-label="ตัวเลขสรุป เลือกเพื่อกรองรายการ">
-            {cards.map((v) => {
+            {CARDS.map((v) => {
               const n = count(v);
               return (
                 <button
                   key={v}
-                  className={`stat${v === 'urgent' && n > 0 ? ' stat--alert' : ''}`}
+                  className={`stat${ALERT.includes(v) && n > 0 ? ' stat--alert' : ''}`}
                   aria-pressed={view === v}
                   onClick={() => setView(v)}
                 >
@@ -108,6 +115,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
               <div className="bar">
                 {STATUS_ORDER.map((s) => {
                   const n = all.filter((t) => t.status === s).length;
+                  // width + colour are data, so they stay inline
                   return n ? <span key={s} className="bar__seg" style={{ width: `${(n / all.length) * 100}%`, background: STATUS_COLOR[s] }} /> : null;
                 })}
               </div>

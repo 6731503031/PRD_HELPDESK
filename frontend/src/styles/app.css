@@ -321,7 +321,7 @@ fieldset { border: 0; margin: 0; padding: 0; }
 /* --------------------------------------------------------------------------
    Status track: a parcel-style progress line
    -------------------------------------------------------------------------- */
-.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .track li {
   position: relative; text-align: center; padding: 30px 2px 0;
   font-size: 0.8rem; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere;
@@ -361,38 +361,6 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .description { white-space: pre-wrap; max-width: 75ch; }
 
 /* --------------------------------------------------------------------------
-   Chat (ticket messages, FR-11 public / FR-12 internal)
-   -------------------------------------------------------------------------- */
-.chat { display: grid; }
-.chat__log {
-  display: flex; flex-direction: column; gap: var(--s3);
-  max-height: 380px; overflow-y: auto; padding: var(--s4) var(--s5);
-  background: var(--subtle);
-}
-.chat__empty { margin: auto; color: var(--muted); font-size: 0.9rem; text-align: center; padding: var(--s5) 0; }
-.msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 80%; }
-.msg--mine { align-self: flex-end; align-items: flex-end; }
-.msg__meta { font-size: 0.75rem; color: var(--muted); margin: 0 var(--s2) 2px; }
-.msg__bubble {
-  background: #fff; border: 1px solid var(--line); color: var(--text);
-  padding: var(--s2) var(--s3); border-radius: 14px 14px 14px 4px;
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
-.msg--mine .msg__bubble { background: var(--brand); border-color: var(--brand); color: #fff; border-radius: 14px 14px 4px 14px; }
-.msg--internal .msg__bubble { background: var(--warn-bg); border: 1px dashed #d9b46a; color: var(--text); }
-.msg__tag { color: var(--high); font-weight: 600; }
-
-.chat__composer {
-  display: flex; gap: var(--s2); align-items: flex-end;
-  padding: var(--s3) var(--s5); border-top: 1px solid var(--line-soft); background: #fff;
-}
-.chat__input { min-height: 42px; max-height: 140px; resize: none; flex: 1 1 auto; }
-.chat__options { padding: 0 var(--s5) var(--s3); background: #fff; font-size: 0.85rem; }
-.chat__options label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
-.chat__options input { accent-color: var(--high); }
-.chat__note { padding: var(--s2) var(--s5); font-size: 0.85rem; color: var(--muted); background: #fff; border-top: 1px solid var(--line-soft); }
-
-/* --------------------------------------------------------------------------
    Notices
    -------------------------------------------------------------------------- */
 .notice {
@@ -415,7 +383,7 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: end; margin-bottom: var(--s4); }
 .filters .field { min-width: 160px; }
 
-.actions-grid { display: grid; gap: var(--s5); }
+.actions-grid { display: grid; gap: var(--s5); list-style: none; margin: 0; padding: 0; }
 .action { display: grid; gap: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--line-soft); }
 .action:first-child { border-top: 0; padding-top: 0; }
 .inline { display: flex; gap: var(--s2); flex-wrap: wrap; }
@@ -424,6 +392,37 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .suggestion dl { margin-top: var(--s3); }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
+
+/* Spacing helpers (replace one-off inline styles) */
+.mt-2 { margin-top: var(--s2); }
+.mt-3 { margin-top: var(--s3); }
+.mt-4 { margin-top: var(--s4); }
+.mt-5 { margin-top: var(--s5); }
+.mb-5 { margin-bottom: var(--s5); }
+
+.ticket-number { font-family: var(--display); font-size: 2.2rem; font-weight: 600; color: var(--brand); line-height: 1.2; }
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.textarea--short { min-height: 80px; }
+.form--narrow { max-width: 560px; }
+.table--static tbody tr { cursor: default; }
+.table--static tbody tr:hover { background: none; }
+.table .cell-end { text-align: right; }
+.table .sub--icon { display: inline-flex; align-items: center; gap: var(--s1); }
+
+/* Admin steps ① ② ③ (UC-07 → UC-08 → UC-09) */
+.step-title { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.step-num {
+  display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--brand); color: #fff; font: 600 0.75rem/1 var(--sans);
+}
+.substeps { margin: 0; padding-left: 1.3em; display: grid; gap: var(--s3); }
+.substeps li::marker { color: var(--brand); font-weight: 600; }
+.copy-ref { display: inline-flex; align-items: center; gap: var(--s1); margin-left: var(--s1); }
+.copy-ref code {
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem;
+  background: var(--subtle); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--navy);
+}
+.confirm { display: grid; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--warn-bg); }
 
 
 /* --------------------------------------------------------------------------
@@ -479,8 +478,6 @@ fieldset { border: 0; margin: 0; padding: 0; }
   .toolbar { padding-inline: var(--s4); }
   .table th:first-child, .table td:first-child { padding-left: var(--s4); }
   .table th:last-child, .table td:last-child { padding-right: var(--s4); }
-  .chat__log, .chat__composer, .chat__options, .chat__note { padding-inline: var(--s4); }
-  .msg { max-width: 92%; }
   .login { padding: 0 var(--s4); }
 }
 /* --------------------------------------------------------------------------
@@ -491,7 +488,6 @@ fieldset { border: 0; margin: 0; padding: 0; }
 @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes msg-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 /* Each screen eases in when you navigate — no blank flash between pages. */
@@ -524,10 +520,6 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .layout-ticket > :last-child > .panel { animation: fade-up 0.34s var(--ease) both 0.08s; }
 .track li::before, .track li::after { transition: background 0.3s, border-color 0.3s, box-shadow 0.3s; }
 
-/* Chat: each new message slides in from its own side. */
-.msg { animation: msg-in 0.24s var(--ease) both; transform-origin: bottom left; }
-.msg--mine { transform-origin: bottom right; }
-
 /* Feedback after an action. */
 .notice { animation: fade-up 0.25s var(--ease) both; }
 
@@ -549,6 +541,7 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .sk--line { height: 12px; }
 .sk--chip { height: 20px; width: 72px; flex: none; border-radius: 999px; }
 .sk--title { height: 28px; width: 55%; }
+.sk--short { width: 120px; }
 .sk--card { height: 96px; border-radius: var(--r-md); }
 
 @media (prefers-reduced-motion: reduce) {

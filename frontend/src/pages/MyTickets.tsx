@@ -29,7 +29,7 @@ export function MyTickets({ selectedId }: { selectedId?: number }) {
       <div className="pagebar">
         <div>
           <h1>คำร้องของฉัน</h1>
-          <p>คำร้องทั้งหมดที่คุณแจ้งไว้ เลือกรายการเพื่อดูสถานะและแชทกับผู้ดูแล</p>
+          <p>คำร้องทั้งหมดที่คุณแจ้งไว้ เลือกรายการเพื่อดูสถานะและความคืบหน้า</p>
         </div>
         <div className="pagebar__actions">
           <a className="btn" href="#/new">

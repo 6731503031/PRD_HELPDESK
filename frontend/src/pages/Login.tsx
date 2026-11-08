@@ -13,7 +13,7 @@ import { ROLE_LABEL } from '../lib/format';
 const ROLE_ORDER: Role[] = ['customer', 'admin'];
 const ROLE_NOTE: Record<Role, string> = {
   customer: 'นักศึกษา อาจารย์ บุคลากร: แจ้งปัญหาและติดตามคำร้องของตัวเอง',
-  admin: 'ผู้ดูแลระบบ: จัดการหมวดหมู่ ดูแลคำร้อง ตอบแชท และปิดงาน',
+  admin: 'ผู้ดูแลระบบ: คัดกรองคำร้อง ส่งต่อฝ่ายซ่อมบำรุง ปิดงาน และจัดการหมวดหมู่',
 };
 
 export function Login() {
@@ -29,7 +29,7 @@ export function Login() {
         <p className="login__lead">แจ้งปัญหาการใช้งาน อุปกรณ์ อาคาร และบัญชีผู้ใช้ ได้ในที่เดียว และติดตามได้ว่าคำร้องอยู่ขั้นไหน</p>
         <ul className="login__points">
           <li>ได้เลขคำร้องทันทีหลังแจ้ง</li>
-          <li>เห็นสถานะและแชทกับผู้ดูแลได้ในคำร้อง</li>
+          <li>เห็นสถานะและประวัติของคำร้องได้ทุกขั้น</li>
           <li>งานซ่อมถูกส่งต่อฝ่ายซ่อมบำรุงและแสดงความคืบหน้าให้</li>
         </ul>
       </section>
@@ -39,18 +39,18 @@ export function Login() {
           <h2 id="signin-title">เข้าสู่ระบบ</h2>
 
           {error ? (
-            <div style={{ marginTop: 16 }}>
+            <div className="mt-4">
               <Notice tone="error" title="เชื่อมต่อระบบไม่ได้">
                 <p>{error}</p>
               </Notice>
             </div>
           ) : step === 'start' ? (
             <>
-              <p className="muted" style={{ marginTop: 8 }}>ใช้บัญชีมหาวิทยาลัยบัญชีเดียวกับระบบอื่นของมหาวิทยาลัย</p>
-              <button className="btn btn--block" style={{ marginTop: 24 }} onClick={() => setStep('choose')} disabled={!users.length}>
+              <p className="muted mt-2">ใช้บัญชีมหาวิทยาลัยบัญชีเดียวกับระบบอื่นของมหาวิทยาลัย</p>
+              <button className="btn btn--block mt-5" onClick={() => setStep('choose')} disabled={!users.length}>
                 เข้าสู่ระบบด้วยบัญชีมหาวิทยาลัย
               </button>
-              <p className="muted small" style={{ marginTop: 16 }}>
+              <p className="muted small mt-4">
                 Helpdesk ไม่เก็บรหัสผ่านของคุณ การยืนยันตัวตนทำโดยระบบ Identity ของมหาวิทยาลัย
               </p>
             </>
@@ -77,7 +77,7 @@ export function Login() {
                   </fieldset>
                 );
               })}
-              <button className="btn btn--plain" style={{ marginTop: 16 }} onClick={() => setStep('start')}>
+              <button className="btn btn--plain mt-4" onClick={() => setStep('start')}>
                 ย้อนกลับ
               </button>
             </>

@@ -12,7 +12,7 @@ export function PriorityText({ priority }: { priority: Priority }) {
   return <span className={`priority priority--${priority}`}>{PRIORITY_LABEL[priority]}</span>;
 }
 
-/** Parcel-style progress line: Open → Assigned → In progress → Resolved → Closed (PRD §14). */
+/** Parcel-style progress line: Open → In progress → Resolved → Closed (PRD §14, v1.1). */
 export function StatusTrack({ status }: { status: TicketStatus }) {
   const current = STATUS_ORDER.indexOf(status);
   return (
@@ -85,14 +85,14 @@ export function Loading({ label = 'กำลังโหลด…', variant = 't
       {variant === 'table' && <div className="sk-stack">{rows(6)}</div>}
       {variant === 'dashboard' && (
         <>
-          <div className="stats">{Array.from({ length: 5 }, (_, i) => <span key={i} className="sk sk--card" />)}</div>
+          <div className="stats">{Array.from({ length: 6 }, (_, i) => <span key={i} className="sk sk--card" />)}</div>
           <div className="panel"><div className="panel__body sk-stack">{rows(7)}</div></div>
         </>
       )}
       {variant === 'detail' && (
         <>
-          <div className="sk-stack" style={{ marginBottom: 24 }}>
-            <span className="sk sk--line" style={{ width: 120 }} />
+          <div className="sk-stack mb-5">
+            <span className="sk sk--line sk--short" />
             <span className="sk sk--title" />
           </div>
           <div className="layout-ticket">
@@ -143,7 +143,7 @@ export function Panel({
   title?: string;
   action?: ReactNode;
   quiet?: boolean;
-  /** true = children draw their own padding (chat, full-bleed lists) */
+  /** true = children draw their own padding (full-bleed lists) */
   flush?: boolean;
   children: ReactNode;
 }) {
