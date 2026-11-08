@@ -13,7 +13,7 @@
  * Ideas for P2 to build on (not required by the PRD):
  *   TODO(P2): publishEvent('ticket.commented', …) for public messages (events/publish.ts)
  *   TODO(P2): unread count per ticket for the staff dashboard (e.g. last_seen table)
- *   TODO(P2): when a requester replies to a 'resolved' ticket, flag it for the agent
+ *   TODO(P2): when a requester replies to a 'resolved' ticket, flag it for the admin
  */
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../../core/env';

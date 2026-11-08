@@ -1,5 +1,6 @@
 /**
- * Staff dashboard (PRD FR-08 queue sorted by priority then age) + ticket workspace (FR-09/10/13).
+ * Admin dashboard (PRD FR-08 list sorted by priority then age) + ticket workspace (FR-10/13).
+ * One staff role (admin) — no assignment, so the views are about status, not people.
  *   #/queue      → numbers at a glance, then the full ticket list
  *   #/queue/:id  → one ticket: conversation + properties + actions
  */
@@ -14,28 +15,26 @@ import { useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 
-type View = 'active' | 'unassigned' | 'urgent' | 'mine' | 'maintenance' | 'done';
+type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'done';
 
-const isActive = (t: Ticket) => t.status === 'open' || t.status === 'assigned' || t.status === 'in_progress';
+const isActive = (t: Ticket) => t.status === 'open' || t.status === 'in_progress';
 
-const VIEWS: Record<View, { label: string; test: (t: Ticket, me?: number) => boolean }> = {
+const VIEWS: Record<View, { label: string; test: (t: Ticket) => boolean }> = {
   active: { label: 'ยังไม่ปิด', test: isActive },
-  unassigned: { label: 'ยังไม่มีผู้รับ', test: (t) => isActive(t) && !t.assigned_agent_id },
-  urgent: { label: 'ด่วนมาก รอผู้รับ', test: (t) => isActive(t) && t.priority === 'urgent' && !t.assigned_agent_id },
-  mine: { label: 'งานของฉัน', test: (t, me) => isActive(t) && t.assigned_agent_id === me },
+  waiting: { label: 'รอเริ่มดำเนินการ', test: (t) => t.status === 'open' },
+  urgent: { label: 'ด่วนมาก ยังไม่เริ่ม', test: (t) => t.status === 'open' && t.priority === 'urgent' },
   maintenance: { label: 'ส่งต่อซ่อมบำรุง', test: (t) => isActive(t) && !!t.maintenance_work_order_id },
   done: { label: 'แก้ไขแล้ว', test: (t) => t.status === 'resolved' || t.status === 'closed' },
 };
 
 const STATUS_COLOR: Record<TicketStatus, string> = {
   open: 'var(--st-open)',
-  assigned: 'var(--st-assigned)',
   in_progress: 'var(--st-progress)',
   resolved: 'var(--st-resolved)',
   closed: 'var(--st-closed)',
 };
 
-export function AgentQueue({ selectedId }: { selectedId?: number }) {
+export function Dashboard({ selectedId }: { selectedId?: number }) {
   const { user } = useIdentity();
   const { data, error, loading, reload } = useAsync(() => api.queue(), [user?.id]);
   const [view, setView] = useState<View>('active');
@@ -43,20 +42,18 @@ export function AgentQueue({ selectedId }: { selectedId?: number }) {
   const [search, setSearch] = useState('');
 
   const all = data ?? [];
-  const cards: View[] = user?.role === 'agent'
-    ? ['active', 'unassigned', 'urgent', 'mine', 'maintenance', 'done']
-    : ['active', 'unassigned', 'urgent', 'maintenance', 'done'];
-  const count = (v: View) => all.filter((t) => VIEWS[v].test(t, user?.id)).length;
+  const cards: View[] = ['active', 'waiting', 'urgent', 'maintenance', 'done'];
+  const count = (v: View) => all.filter((t) => VIEWS[v].test(t)).length;
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return all.filter(
       (t) =>
-        VIEWS[view].test(t, user?.id) &&
+        VIEWS[view].test(t) &&
         (!priority || t.priority === priority) &&
         (!q || [t.ticket_number, t.title, t.customer_name ?? '', t.category_name ?? ''].some((s) => s.toLowerCase().includes(q))),
     );
-  }, [all, view, priority, search, user?.id]);
+  }, [all, view, priority, search]);
 
   if (selectedId) {
     return (
@@ -74,7 +71,7 @@ export function AgentQueue({ selectedId }: { selectedId?: number }) {
       <div className="pagebar">
         <div>
           <h1>แดชบอร์ด</h1>
-          <p>คำร้องเรียงตามความเร่งด่วน แล้วตามเวลาที่รอ งานด่วนมากที่ไม่มีผู้รับเกิน 1 ชั่วโมงจะถูกยกระดับอัตโนมัติ</p>
+          <p>คำร้องเรียงตามความเร่งด่วน แล้วตามเวลาที่รอ งานด่วนมากที่ยังไม่เริ่มดำเนินการเกิน 1 ชั่วโมงจะถูกยกระดับอัตโนมัติ</p>
         </div>
         <div className="pagebar__actions">
           <button className="btn btn--secondary" onClick={() => void reload()}>

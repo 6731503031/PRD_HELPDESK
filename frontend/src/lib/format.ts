@@ -2,12 +2,11 @@ import type { Priority, Role, TicketStatus } from '../api/types';
 
 export const STATUS_LABEL: Record<TicketStatus, string> = {
   open: 'เปิดใหม่',
-  assigned: 'มอบหมายแล้ว',
   in_progress: 'กำลังดำเนินการ',
   resolved: 'แก้ไขแล้ว',
   closed: 'ปิดแล้ว',
 };
-export const STATUS_ORDER: TicketStatus[] = ['open', 'assigned', 'in_progress', 'resolved', 'closed'];
+export const STATUS_ORDER: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
   low: 'ต่ำ',
@@ -24,7 +23,6 @@ export const PRIORITY_HINT: Record<Priority, string> = {
 
 export const ROLE_LABEL: Record<Role, string> = {
   customer: 'ผู้แจ้ง',
-  agent: 'เจ้าหน้าที่',
   admin: 'ผู้ดูแลระบบ',
 };
 

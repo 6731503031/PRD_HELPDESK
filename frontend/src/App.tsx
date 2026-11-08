@@ -1,22 +1,22 @@
 /**
  * App shell: left sidebar (logo, signed-in user, role-aware menu) + main area.
  *
- *   Requester (customer)        Staff (agent, admin)
+ *   Requester (customer)        Admin (runs the Helpdesk)
  *   #/new      Create ticket     #/queue        Dashboard + ticket list
  *   #/my       My tickets        #/queue/:id    Ticket workspace
  *   #/my/:id   Ticket status     #/admin        Admin (admin only)
  *
- * Staff do not file tickets here, so they never see the requester screens.
+ * Two roles only. The admin does not file tickets, so never sees the requester screens.
  */
 import { useEffect } from 'react';
 import { isStaff, useIdentity } from './auth/identity';
 import { Avatar, Icon, type IconName } from './components/Icon';
 import { Logo } from './components/Logo';
-import { Notice } from './components/ui';
+import { Loading, Notice } from './components/ui';
 import { ROLE_LABEL } from './lib/format';
 import { match, navigate, usePath } from './lib/router';
 import { Admin } from './pages/Admin';
-import { AgentQueue } from './pages/AgentQueue';
+import { Dashboard } from './pages/Dashboard';
 import { CreateTicket } from './pages/CreateTicket';
 import { Login } from './pages/Login';
 import { MyTickets } from './pages/MyTickets';
@@ -32,13 +32,12 @@ export function App() {
     if (path === '/') navigate(staff ? '/queue' : '/new');
     else if (staff && (path === '/new' || path.startsWith('/my'))) navigate('/queue');
     else if (!staff && (path.startsWith('/queue') || path === '/admin')) navigate('/my');
-    else if (path === '/admin' && user.role !== 'admin') navigate('/queue');
   }, [path, user, staff]);
 
   const nav: { href: string; label: string; icon: IconName }[] = staff
     ? [
         { href: '/queue', label: 'แดชบอร์ด', icon: 'dashboard' },
-        ...(user?.role === 'admin' ? [{ href: '/admin', label: 'ผู้ดูแลระบบ', icon: 'settings' as IconName }] : []),
+        { href: '/admin', label: 'จัดการหมวดหมู่', icon: 'settings' },
       ]
     : [
         { href: '/new', label: 'แจ้งปัญหาใหม่', icon: 'plus' },
@@ -50,8 +49,8 @@ export function App() {
   if (path === '/new') page = <CreateTicket />;
   else if (path === '/my') page = <MyTickets />;
   else if ((params = match('/my/:id', path))) page = <MyTickets selectedId={Number(params.id)} />;
-  else if (path === '/queue') page = <AgentQueue />;
-  else if ((params = match('/queue/:id', path))) page = <AgentQueue selectedId={Number(params.id)} />;
+  else if (path === '/queue') page = <Dashboard />;
+  else if ((params = match('/queue/:id', path))) page = <Dashboard selectedId={Number(params.id)} />;
   else if (path === '/admin') page = <Admin />;
 
   const skip = (
@@ -122,8 +121,12 @@ export function App() {
                 <p>{error}</p>
               </Notice>
             </div>
-          ) : (
+          ) : user ? (
+            // Pages mount only once the signed-in user is known, so their first request
+            // always carries the identity headers (no 401 race on hard reload).
             <div key={path} className="route">{page}</div>
+          ) : (
+            <div className="page"><Loading variant="dashboard" /></div>
           )}
         </main>
       </div>

@@ -87,4 +87,5 @@ export function useIdentity() {
   return ctx;
 }
 
-export const isStaff = (u: User | null) => u?.role === 'agent' || u?.role === 'admin';
+/** Two roles: requester (customer) and admin, who runs the Helpdesk. */
+export const isStaff = (u: User | null) => u?.role === 'admin';

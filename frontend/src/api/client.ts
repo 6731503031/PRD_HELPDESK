@@ -63,17 +63,15 @@ export const api = {
   createTicket: (input: { subject: string; description: string; category_id: number; urgency: Priority }) =>
     request<{ data: Ticket }>('/tickets', post(input)).then((r) => r.data),
   myTickets: () => request<{ data: Ticket[] }>('/tickets/me').then((r) => r.data),
-  queue: (f: { status?: string; priority?: string; unassigned?: boolean } = {}) => {
+  queue: (f: { status?: string; priority?: string } = {}) => {
     const q = new URLSearchParams({ sort: 'queue' });
     if (f.status) q.set('status', f.status);
     if (f.priority) q.set('priority', f.priority);
-    if (f.unassigned) q.set('unassigned', 'true');
     return request<{ data: Ticket[] }>(`/tickets?${q}`).then((r) => r.data);
   },
   ticket: (id: number) => request<{ data: TicketDetail }>(`/tickets/${id}`).then((r) => r.data),
   updateTicket: (id: number, fields: Partial<{ priority: Priority; category_id: number; status: TicketStatus; title: string; description: string }>) =>
     request<{ data: Ticket }>(`/tickets/${id}`, patch(fields)).then((r) => r.data),
-  assign: (id: number, agentId: number) => request<{ data: Ticket }>(`/tickets/${id}/assign`, post({ agent_id: agentId })).then((r) => r.data),
   resolve: (id: number, note: string) =>
     request<{ data: Ticket }>(`/tickets/${id}/resolve`, post({ resolution_note: note })).then((r) => r.data),
 

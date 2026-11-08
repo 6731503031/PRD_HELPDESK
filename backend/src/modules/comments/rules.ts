@@ -17,11 +17,11 @@ export type Comment = {
 
 export const VISIBILITIES: readonly Visibility[] = ['public', 'internal'];
 
-const isStaffRole = (role: Role) => role === 'agent' || role === 'admin';
+const isStaffRole = (role: Role) => role === 'admin';
 
 /**
  * F11/F12: who may post which visibility?
- *   customer → 'public' only ; agent / admin → 'public' or 'internal'
+ *   customer → 'public' only ; admin → 'public' or 'internal'
  */
 export function canPost(role: Role, visibility: Visibility): boolean {
   if (!VISIBILITIES.includes(visibility)) return false;
@@ -30,7 +30,7 @@ export function canPost(role: Role, visibility: Visibility): boolean {
 
 /**
  * F12 / BR-03: a requester must NEVER receive internal comments.
- *   customer → only visibility === 'public' ; agent / admin → all
+ *   customer → only visibility === 'public' ; admin → all
  */
 export function visibleTo<T extends Pick<Comment, 'visibility'>>(role: Role, comments: T[]): T[] {
   return isStaffRole(role) ? comments : comments.filter((c) => c.visibility === 'public');

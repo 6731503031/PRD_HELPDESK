@@ -4,12 +4,11 @@
  *
  *   POST   /tickets               FR-03 create
  *   GET    /tickets/me            FR-05 my tickets
- *   GET    /tickets               FR-08 agent queue (customer → own only)
+ *   GET    /tickets               FR-08 admin dashboard list (customer → own only)
  *   GET    /tickets/:id           FR-06 detail + status history
  *   PATCH  /tickets/:id           FR-10 triage / requester edit (field whitelist)
  *   PUT    /tickets/:id           legacy alias of PATCH (Assignment 2)
  *   DELETE /tickets/:id           Assignment 2 (admin / owner before resolve)
- *   POST   /tickets/:id/assign    FR-09
  *   POST   /tickets/:id/resolve   FR-13
  */
 import { Hono, type Context } from 'hono';
@@ -22,8 +21,6 @@ import {
   PRIORITIES,
   STATUSES,
   WELLBEING_SLUGS,
-  canAssign,
-  canBeAssignee,
   canResolve,
   canTransition,
   canViewTicket,
@@ -68,7 +65,7 @@ ticketRoutes.post('/tickets', async (c) => {
   await recordStatus(c.env.DB, id, null, 'open', user.id, 'helpdesk', 'สร้างคำร้อง');
   const ticket = (await getTicket(c.env.DB, id))!;
   await publishEvent(c.env, 'ticket.created', ticket); // FR-04
-  // PRD §8.1: keep the triage suggestion for the agent — runs after the response, never blocks creation (F31, P4)
+  // PRD §8.1: keep the triage suggestion for the admin — runs after the response, never blocks creation (F31, P4)
   c.executionCtx.waitUntil(recordSuggestion(c.env, ticket));
   return c.json({ message: 'Ticket created', data: withNames(ticket) }, 201);
 });
@@ -89,8 +86,6 @@ ticketRoutes.get('/tickets', async (c) => {
     customerId: isStaff(user.role) ? (q.customer_id ? Number(q.customer_id) : undefined) : user.id,
     status,
     priority,
-    assignedAgentId: q.assigned_agent_id ? Number(q.assigned_agent_id) : undefined,
-    unassigned: q.unassigned === 'true',
     sort: q.sort === 'queue' ? 'queue' : 'recent',
   });
   return c.json({ count: rows.length, data: rows.map(withNames) });
@@ -108,7 +103,7 @@ async function patchTicket(c: Context<AppEnv>) {
   const user = c.get('user');
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
   if (!isStaff(user.role) && ticket.status !== 'open') {
-    throw conflict('แก้ไขได้เฉพาะตอนที่คำร้องยังไม่มีผู้รับเรื่อง');
+    throw conflict('แก้ไขได้เฉพาะตอนที่คำร้องยังไม่เริ่มดำเนินการ');
   }
 
   const body = await readJson<Record<string, unknown>>(c);
@@ -123,10 +118,6 @@ async function patchTicket(c: Context<AppEnv>) {
   if ('priority' in fields && !PRIORITIES.includes(fields.priority as never)) throw badRequest('priority ไม่ถูกต้อง');
   if ('category_id' in fields && !(await categoryIsActive(c.env.DB, Number(fields.category_id)))) {
     throw badRequest('category_id ไม่มีหรือถูกปิดใช้งาน');
-  }
-  if ('assigned_agent_id' in fields && fields.assigned_agent_id !== null) {
-    const agent = verify(Number(fields.assigned_agent_id));
-    if (!agent || !canBeAssignee(agent.role)) throw badRequest('assigned_agent_id ต้องเป็นเจ้าหน้าที่ (agent)');
   }
   if ('wellbeing_service_slug' in fields && fields.wellbeing_service_slug !== null &&
       !WELLBEING_SLUGS.includes(fields.wellbeing_service_slug as never)) {
@@ -155,33 +146,10 @@ ticketRoutes.put('/tickets/:id', patchTicket);
 
 // ---------- Delete (Assignment 2) ----------
 ticketRoutes.delete('/tickets/:id', async (c) => {
-  const user = c.get('user');
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
-  if (user.role === 'agent') throw forbidden('agent ลบ ticket ไม่ได้ ใช้ resolve แทน');
   if (ticket.status === 'resolved' || ticket.status === 'closed') throw conflict('ticket ที่ปิดแล้วลบไม่ได้');
   await c.env.DB.prepare('DELETE FROM tickets WHERE id = ?').bind(ticket.id).run();
   return c.json({ message: 'Ticket deleted', id: ticket.id });
-});
-
-// ---------- FR-09 Assign ----------
-ticketRoutes.post('/tickets/:id/assign', async (c) => {
-  const user = c.get('user');
-  const ticket = await loadVisible(c, parseId(c.req.param('id')));
-  const check = canAssign(user, ticket);
-  if (!check.ok) throw forbidden(check.reason!);
-
-  const body = await readJson<{ agent_id?: number }>(c);
-  const agentId = Number(body.agent_id ?? user.id); // default = assign to myself (agents)
-  const agent = verify(agentId);
-  if (!agent || !canBeAssignee(agent.role)) throw badRequest('agent_id ต้องเป็นเจ้าหน้าที่ (agent) ผู้ดูแลระบบรับงานเองไม่ได้');
-
-  const to: TicketStatus = ticket.status === 'open' ? 'assigned' : ticket.status;
-  await updateTicket(c.env.DB, ticket.id, { assigned_agent_id: agentId, status: to });
-  if (to !== ticket.status) await recordStatus(c.env.DB, ticket.id, ticket.status, to, user.id, 'helpdesk', `มอบหมายให้ ${agent.displayName}`);
-
-  const updated = (await getTicket(c.env.DB, ticket.id))!;
-  await publishEvent(c.env, 'ticket.assigned', updated);
-  return c.json({ message: 'Ticket assigned', data: withNames(updated) });
 });
 
 // ---------- FR-13 Resolve ----------

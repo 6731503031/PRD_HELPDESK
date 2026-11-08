@@ -45,13 +45,13 @@ describe.skip('AI triage + fallback (PRD §8) — TODO P4', () => {
   });
 });
 
-describe('suggestion kept for the agent (F31)', () => {
+describe('suggestion kept for the admin (F31)', () => {
   it('junk AI output still gives a fallback suggestion', () => {
     expect(pickSuggestion('not json', { subject: 'x', description: 'y', categories }).source).toBe('fallback');
   });
 });
 
-describe.skip('suggestion kept for the agent (F31) — TODO P4', () => {
+describe.skip('suggestion kept for the admin (F31) — TODO P4', () => {
   it('uses valid AI output when there is one', () => {
     const s = pickSuggestion({ category_id: 5, priority: 'high', route: 'maintenance', reason: 'aircon' }, { subject: 'x', description: 'y', categories });
     expect(s).toMatchObject({ category_id: 5, route: 'maintenance', source: 'ai' });

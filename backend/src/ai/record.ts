@@ -1,10 +1,10 @@
 /**
- * Keep the triage suggestion on the ticket so the AGENT sees it too (PRD §8.1 "user or Agent", FR-10).
+ * Keep the triage suggestion on the ticket so the ADMIN sees it too (PRD §8.1, FR-10).
  * Owner: P4 (AI Triage & Admin) — feature F31
  *
  * Flow: POST /tickets creates the ticket → responds 201 → THEN (waitUntil) recordSuggestion runs.
  * So the AI never slows down or breaks ticket creation (PRD §15 failure isolation).
- * The agent's queue/detail shows "AI suggested: <route>" and flags when the requester chose differently.
+ * The admin dashboard/detail shows "AI suggested: <route>" and flags when the requester chose differently.
  * The suggestion is advisory only — it never changes category/priority/status (BR-05).
  */
 import type { Bindings } from '../core/env';
@@ -37,5 +37,5 @@ export async function recordSuggestion(env: Bindings, ticket: Ticket): Promise<v
   void env;
   void ticket;
   void askAi;
-  // TODO(P4, F31) — until then the agent sees "ยังไม่มีคำแนะนำจากระบบ"
+  // TODO(P4, F31) — until then the admin sees "ยังไม่มีคำแนะนำจากระบบ"
 }

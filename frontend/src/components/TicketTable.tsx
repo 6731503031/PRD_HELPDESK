@@ -31,7 +31,6 @@ export function TicketTable({
             <th scope="col">ความเร่งด่วน</th>
             <th scope="col">สถานะ</th>
             {queue && <th scope="col">ผู้แจ้ง</th>}
-            <th scope="col">ผู้รับผิดชอบ</th>
             <th scope="col">{queue ? 'รอมาแล้ว' : 'อัปเดตล่าสุด'}</th>
           </tr>
         </thead>
@@ -58,16 +57,6 @@ export function TicketTable({
                   </span>
                 </td>
               )}
-              <td>
-                {t.agent_name ? (
-                  <span className="person">
-                    <Avatar name={t.agent_name} size={24} />
-                    {t.agent_name}
-                  </span>
-                ) : (
-                  <span className="muted small">ยังไม่มีผู้รับ</span>
-                )}
-              </td>
               <td className="nowrap">{queue ? age(t.created_at) : formatDateTime(t.updated_at)}</td>
             </tr>
           ))}

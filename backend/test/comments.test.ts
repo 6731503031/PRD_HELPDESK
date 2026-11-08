@@ -23,18 +23,18 @@ describe('#4 Comment (FR-11, FR-12, BR-03)', () => {
     expect(canPost('customer', 'public')).toBe(true);
     expect(canPost('customer', 'internal')).toBe(false);
   });
-  it('lets agents post internal comments', () => {
-    expect(canPost('agent', 'internal')).toBe(true);
+  it('lets the admin post internal notes', () => {
+    expect(canPost('admin', 'internal')).toBe(true);
   });
   it('never shows internal comments to a requester', () => {
     expect(visibleTo('customer', comments).map((c) => c.id)).toEqual([1]);
-    expect(visibleTo('agent', comments).map((c) => c.id)).toEqual([1, 2]);
+    expect(visibleTo('admin', comments).map((c) => c.id)).toEqual([1, 2]);
   });
 });
 
 describe('comment edge cases', () => {
   it('rejects unknown visibility values', () => {
-    expect(canPost('agent', 'secret' as never)).toBe(false);
+    expect(canPost('admin', 'secret' as never)).toBe(false);
   });
   it('lets admins see and write internal notes too', () => {
     expect(canPost('admin', 'internal')).toBe(true);

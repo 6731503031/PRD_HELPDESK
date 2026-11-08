@@ -50,7 +50,7 @@ git + ส่งงาน
 - [ ] **F15/F16/F18** `events/publish.ts` → เก็บลงตาราง `domain_events` (ห้าม throw)
 - [ ] **F17** `events/escalation.ts` → `isEscalationDue()` + `runEscalation()` แล้วลบ `.skip` ใน `backend/test/escalation.test.ts`
 - [ ] ทดสอบ cron: `npx wrangler dev --test-scheduled` แล้วเปิด `http://127.0.0.1:8787/__scheduled`
-- [ ] เช็กในหน้าเว็บ: เจ้าหน้าที่เขียนข้อความภายใน → ผู้แจ้งต้องมองไม่เห็น
+- [ ] เช็กในหน้าเว็บ: admin เขียนบันทึกภายใน → ผู้แจ้งต้องมองไม่เห็น
 
 ### P3: API เชื่อมกับ Team 10
 - [ ] ส่งเอกสาร `docs/Helpdesk-Maintenance-Integration-Proposal.docx` ให้ Team 10 และตามคำตอบ (ข้อ 1, 2, 3, 6, 7, 9 ต้องได้ก่อน)
@@ -211,7 +211,7 @@ BASE=https://helpdesk-api.team-helpdesk.workers.dev bash scripts/smoke.sh
 | ลำดับ | ใคร | เนื้อหา | เปิดให้ดู |
 |---|---|---|---|
 | 1 | P1 | ปัญหา, PRD, ผู้ใช้ 3 role, architecture, data ownership, auth | `backend/src/core/auth.ts`, `tickets/rules.ts` |
-| 2 | P1 + P4 | Demo หน้าเว็บ (P1) + อธิบาย AI แนะนำ/fallback (P4): ผู้แจ้งสร้างคำร้อง + AI แนะนำ → เจ้าหน้าที่คัดกรอง/มอบหมาย | หน้าเว็บสด |
+| 2 | P1 + P4 | Demo หน้าเว็บ (P1) + อธิบาย AI แนะนำ/fallback (P4): ผู้แจ้งสร้างคำร้อง + AI แนะนำ → admin คัดกรอง/แชท/ปิดงาน | หน้าเว็บสด |
 | 3 | P3 | Integration Team 10: proposal, webhook, HMAC, ส่ง mock event สด | `maintenance/routes.ts`, script |
 | 4 | P2 | ข้อความ public/internal, events, escalation | `comments/rules.ts`, `escalation.ts` |
 | 5 | P1 | Tests (`npm test`), CI, limitations, future work | GitHub Actions + PR history |

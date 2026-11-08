@@ -1,10 +1,10 @@
 /**
- * Ticket detail — shared by My Tickets (requester) and Agent Queue (staff).
+ * Ticket detail — shared by My Tickets (requester) and the admin dashboard.
  * PRD FR-06 (detail, status, history, comments, resolution), §6 maintenance status.
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { NotReadyError, api } from '../api/client';
-import type { Category, Comment, Priority, TicketDetail as Detail, User, Visibility } from '../api/types';
+import type { Category, Comment, Priority, TicketDetail as Detail, Visibility } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, ROUTE_LABEL, STATUS_LABEL, formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -81,10 +81,6 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
               <dd><PriorityText priority={t.priority} /></dd>
               <dt>ผู้แจ้ง</dt>
               <dd className="person"><Avatar name={t.customer_name} size={22} /> {t.customer_name ?? `#${t.customer_id}`}</dd>
-              <dt>ผู้รับผิดชอบ</dt>
-              <dd className="person">
-                {t.agent_name ? <><Avatar name={t.agent_name} size={22} /> {t.agent_name}</> : <span className="muted">ยังไม่มีผู้รับเรื่อง</span>}
-              </dd>
               <dt>แจ้งเมื่อ</dt>
               <dd>{formatDateTime(t.created_at)}</dd>
               <dt>อัปเดตล่าสุด</dt>
@@ -92,7 +88,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
             </dl>
           </Panel>
 
-          {staff && <AgentActions ticket={t} onChanged={changed} />}
+          {staff && <AdminActions ticket={t} onChanged={changed} />}
 
           <Panel title="ประวัติสถานะ">
             {t.history.length === 0 ? (
@@ -166,7 +162,7 @@ function Chat({ ticketId }: { ticketId: number }) {
   };
 
   return (
-    <Panel flush title={staff ? 'แชทกับผู้แจ้ง' : 'แชทกับเจ้าหน้าที่'} action={<Icon name="chat" />}>
+    <Panel flush title={staff ? 'แชทกับผู้แจ้ง' : 'แชทกับผู้ดูแล Helpdesk'} action={<Icon name="chat" />}>
       <div className="chat">
         <div className="chat__log" ref={logRef} aria-live="polite">
           {loading && !data ? (
@@ -232,11 +228,11 @@ function Chat({ ticketId }: { ticketId: number }) {
 }
 
 /* ---------------------------------------------------------------------------
-   Staff actions — FR-09 assign, FR-10 triage, §6 link work order, FR-13 resolve
+   Admin actions — FR-10 triage, §6 link work order, FR-13 resolve (no assignment: one staff role)
    --------------------------------------------------------------------------- */
 /**
- * PRD §8.1 / FR-10: the agent sees what the system suggested and whether the requester chose differently.
- * Advisory only — the agent's own triage decision is what counts. Data filled by recordSuggestion (F31, P4).
+ * PRD §8.1 / FR-10: the admin sees what the system suggested and whether the requester chose differently.
+ * Advisory only — the admin's own triage decision is what counts. Data filled by recordSuggestion (F31, P4).
  */
 function SystemSuggestion({ ticket: t }: { ticket: Detail }) {
   if (t.status === 'resolved' || t.status === 'closed') return null; // nothing left to triage
@@ -266,16 +262,10 @@ function SystemSuggestion({ ticket: t }: { ticket: Detail }) {
   );
 }
 
-function AgentActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => void }) {
-  const { user, users } = useIdentity();
+function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => void }) {
   const { data: categories } = useAsync(() => api.categories(), []);
-  // FR-09: tickets go to Helpdesk agents only — admins manage the system, they don't take tickets.
-  const agents = users.filter((u: User) => u.role === 'agent');
   const closed = ticket.status === 'resolved' || ticket.status === 'closed';
 
-  const [agentId, setAgentId] = useState<number>(
-    ticket.assigned_agent_id ?? (user?.role === 'agent' ? user.id : agents[0]?.id ?? 0),
-  );
   const [priority, setPriority] = useState<Priority>(ticket.priority);
   const [categoryId, setCategoryId] = useState<number>(ticket.category_id);
   const [workOrder, setWorkOrder] = useState('');
@@ -299,37 +289,20 @@ function AgentActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
 
   if (closed) {
     return (
-      <Panel title="การดำเนินการของเจ้าหน้าที่" quiet>
+      <Panel title="การดำเนินการ" quiet>
         <p className="muted">คำร้องนี้ปิดแล้ว ไม่มีการดำเนินการเพิ่มเติม</p>
       </Panel>
     );
   }
 
   return (
-    <Panel title="การดำเนินการของเจ้าหน้าที่">
+    <Panel title="การดำเนินการ">
       <div aria-live="polite">
         {result?.ok && <Notice tone="ok" title={result.text} />}
         {result && !result.ok && <ErrorNotice error={result.error} />}
       </div>
 
       <div className="actions-grid" style={{ marginTop: result ? 16 : 0 }}>
-        <div className="action">
-          <h3>มอบหมายงาน</h3>
-          <div className="inline">
-            <label className="visually-hidden" htmlFor="assign-agent">ผู้รับผิดชอบ</label>
-            <select id="assign-agent" className="select" value={agentId} onChange={(e) => setAgentId(Number(e.target.value))}>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.full_name}{a.id === user?.id ? ' (ฉัน)' : ''}
-                </option>
-              ))}
-            </select>
-            <button className="btn" disabled={!!busy || !agentId} onClick={() => run('assign', () => api.assign(ticket.id, agentId), 'มอบหมายงานแล้ว')}>
-              มอบหมาย
-            </button>
-          </div>
-        </div>
-
         <div className="action">
           <h3>คัดกรอง</h3>
           <div className="inline">
@@ -354,7 +327,7 @@ function AgentActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
             >
               บันทึกการคัดกรอง
             </button>
-            {ticket.status !== 'in_progress' && (
+            {ticket.status === 'open' && (
               <button
                 className="btn btn--secondary"
                 disabled={!!busy}

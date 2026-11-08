@@ -20,7 +20,6 @@
 
   /* Status */
   --st-open: #4a5566;
-  --st-assigned: #2456a6;
   --st-progress: #9a6200;
   --st-resolved: #2f7a45;
   --st-closed: #6b7280;
@@ -274,7 +273,6 @@ fieldset { border: 0; margin: 0; padding: 0; }
 }
 .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .status--open { color: var(--st-open); }
-.status--assigned { color: var(--st-assigned); }
 .status--in_progress { color: var(--st-progress); }
 .status--resolved { color: var(--st-resolved); }
 .status--closed { color: var(--st-closed); }

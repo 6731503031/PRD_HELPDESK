@@ -1,12 +1,14 @@
 /**
  * Ticket business rules — PURE functions (no DB), so they are easy to unit test.
  * Owner: P1 (Core & Tickets)
- * PRD: FR-03, FR-07, FR-09, FR-10, FR-13, BR-01, BR-02, §14 lifecycle
+ * PRD: FR-03, FR-07, FR-10, FR-13, BR-01, BR-02, §14 lifecycle
+ * Roles: customer (requester) and admin (runs the Helpdesk). No agents, no assignment.
  */
 import type { AuthUser } from '../../core/env';
 import type { Role } from '../../core/identity';
 
-export const STATUSES = ['open', 'assigned', 'in_progress', 'resolved', 'closed'] as const;
+// 'assigned' is gone with the agent role; the DB CHECK still accepts it for old rows only.
+export const STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export const WELLBEING_SLUGS = ['counselling', 'health-clinic', 'physiotherapy', 'wellbeing-advising'] as const;
 
@@ -22,14 +24,14 @@ export type Ticket = {
   priority: Priority;
   category_id: number;
   customer_id: number;
-  assigned_agent_id: number | null;
+  assigned_agent_id: number | null; // legacy column (Assignment 2), no longer written
   resolution_note: string | null;
   wellbeing_service_slug: string | null;
   maintenance_work_order_id: string | null;
   maintenance_status: string | null;
   maintenance_status_at: string | null;
   escalated_at: string | null;
-  ai_category_id: number | null; // PRD §8: suggestion kept for the agent (F31)
+  ai_category_id: number | null; // PRD §8: suggestion kept for the admin (F31)
   ai_priority: Priority | null;
   ai_route: string | null;
   ai_source: 'ai' | 'fallback' | null;
@@ -85,40 +87,26 @@ export function validateCreate(
   };
 }
 
-export const isStaff = (role: Role) => role === 'agent' || role === 'admin';
+export const isStaff = (role: Role) => role === 'admin';
 
-/** FR-07 / BR-01: requester sees own tickets; agents/admins see all. */
+/** FR-07 / BR-01: requester sees own tickets; admin sees all. */
 export function canViewTicket(user: AuthUser, ticket: Pick<Ticket, 'customer_id'>): boolean {
   return isStaff(user.role) || ticket.customer_id === user.id;
 }
 
 /**
- * BR-02: only Agents/Admins change assignee, category, priority, status, maintenance link.
+ * BR-02: only the admin changes category, priority, status, maintenance link.
  * A requester may only fix the wording of their own ticket while it is still open.
  */
 export function editableFields(role: Role): string[] {
   const requester = ['title', 'description'];
   if (!isStaff(role)) return requester;
-  return [...requester, 'priority', 'status', 'category_id', 'assigned_agent_id', 'resolution_note', 'wellbeing_service_slug'];
-}
-
-/** FR-09: only staff can assign; the assignee must be an agent/admin (checked against Identity by the caller). */
-export function canAssign(user: AuthUser, ticket: Pick<Ticket, 'status'>): { ok: boolean; reason?: string } {
-  if (!isStaff(user.role)) return { ok: false, reason: 'เฉพาะเจ้าหน้าที่เท่านั้นที่มอบหมายงานได้' };
-  if (ticket.status === 'resolved' || ticket.status === 'closed') {
-    return { ok: false, reason: 'ticket ที่ปิดแล้วมอบหมายใหม่ไม่ได้' };
-  }
-  return { ok: true };
-}
-
-/** FR-09: tickets are assigned to Helpdesk agents only — admins manage the system, they don't own tickets. */
-export function canBeAssignee(role: Role | undefined): boolean {
-  return role === 'agent';
+  return [...requester, 'priority', 'status', 'category_id', 'resolution_note', 'wellbeing_service_slug'];
 }
 
 /** FR-13: only staff can resolve, and not twice. */
 export function canResolve(user: AuthUser, ticket: Pick<Ticket, 'status'>): { ok: boolean; reason?: string } {
-  if (!isStaff(user.role)) return { ok: false, reason: 'เฉพาะเจ้าหน้าที่เท่านั้นที่ปิดงานได้' };
+  if (!isStaff(user.role)) return { ok: false, reason: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ปิดงานได้' };
   if (ticket.status === 'resolved' || ticket.status === 'closed') {
     return { ok: false, reason: 'ticket นี้ปิดไปแล้ว' };
   }
@@ -126,12 +114,11 @@ export function canResolve(user: AuthUser, ticket: Pick<Ticket, 'status'>): { ok
 }
 
 /**
- * §14 lifecycle: Open → Assigned → InProgress → Resolved → Closed
+ * §14 lifecycle: Open → InProgress → Resolved → Closed
  *
  * TODO(P1, F25): enforce the lifecycle. Suggested table:
- *   open        → assigned, in_progress, resolved
- *   assigned    → in_progress, open, resolved
- *   in_progress → resolved, assigned
+ *   open        → in_progress, resolved
+ *   in_progress → resolved, open
  *   resolved    → closed, in_progress (re-open)
  *   closed      → (nothing)
  * Then un-skip the lifecycle tests in test/tickets.rules.test.ts.

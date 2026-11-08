@@ -14,7 +14,7 @@ PRD_HELPDESK/
 │   ├── index.html
 │   ├── vite.config.ts        build ไป public/ ให้ Worker เสิร์ฟ
 │   └── src/
-│       ├── pages/            Login, CreateTicket, MyTickets, AgentQueue, Admin
+│       ├── pages/            Login, CreateTicket, MyTickets, Dashboard, Admin
 │       ├── components/       ตาราง, รายละเอียดคำร้อง, ปุ่ม/ฟอร์มกลาง
 │       ├── api/              client.ts เรียก /api/v1 + types.ts
 │       ├── auth/             เข้าสู่ระบบแบบ stub
@@ -26,7 +26,7 @@ PRD_HELPDESK/
 │   │   ├── index.ts          รวมทุกโมดูล + /api/v1 + cron                       P1
 │   │   ├── core/             env, auth (Identity stub), error, correlation id    P1
 │   │   ├── modules/
-│   │   │   ├── tickets/      สร้าง / คิว / รายละเอียด / มอบหมาย / ปิดงาน           P1
+│   │   │   ├── tickets/      สร้าง / แดชบอร์ด / รายละเอียด / ปิดงาน                 P1
 │   │   │   ├── reference/    categories, users, health                          P1
 │   │   │   ├── comments/     ข้อความ public / internal                           P2
 │   │   │   ├── events/       ticket.* events + escalation (cron)                P2
@@ -36,7 +36,7 @@ PRD_HELPDESK/
 │   │   └── ai/               ★ ส่วน AI: แนะนำหมวด/ความเร่งด่วน + fallback        P4
 │   │       ├── ai.ts         เรียก Workers AI (Llama 3.1 8B)
 │   │       ├── fallback.ts   กฎ keyword เมื่อ AI ใช้ไม่ได้ + ตรวจผลลัพธ์ AI
-│   │       ├── record.ts     เก็บคำแนะนำไว้กับคำร้อง ให้เจ้าหน้าที่เห็นในคิวงาน
+│   │       ├── record.ts     เก็บคำแนะนำไว้กับคำร้อง ให้ admin เห็นในแดชบอร์ด
 │   │       └── routes.ts     POST /tickets/suggest
 │   ├── test/                 Vitest (test ที่ .skip = รอเจ้าของงานทำ)
 │   └── postman_collection.json
@@ -77,7 +77,7 @@ npm run dev                   # http://127.0.0.1:8787  (หน้าเว็บ
 | `npm run wt:new -- p2/events` | เริ่มงานใหม่ใน git worktree ของตัวเอง (ดู docs/TEAM_GUIDE.md ข้อ 4) |
 | `npm run wt:list` / `wt:open` / `wt:rm` | ดู / เปิดงานเพื่อนมา review / ลบ worktree |
 
-เปิดเว็บแล้วจะเจอหน้าเข้าสู่ระบบ (เลือกบัญชีทดสอบ) หรือข้ามด้วย `?as=<id>` เช่น http://127.0.0.1:8787/?as=3#/queue
+เปิดเว็บแล้วจะเจอหน้าเข้าสู่ระบบ (เลือกบัญชีทดสอบ) หรือข้ามด้วย `?as=<id>` เช่น http://127.0.0.1:8787/?as=5#/queue
 
 ## เอกสาร
 
@@ -92,6 +92,6 @@ npm run dev                   # http://127.0.0.1:8787  (หน้าเว็บ
 
 ## หมายเหตุ
 
-- ผู้ใช้เป็น Identity stub (PRD §20) ไม่เชื่อมกับทีมอื่น: ส่ง header `x-user-id` + `x-user-role` ตาม `backend/src/core/identity.ts` (6 คน: 3 customer, 2 agent, 1 admin) หน้าเว็บส่งให้เองหลังเข้าสู่ระบบ
+- ผู้ใช้เป็น Identity stub (PRD §20) ไม่เชื่อมกับทีมอื่น: ส่ง header `x-user-id` + `x-user-role` ตาม `backend/src/core/identity.ts` (4 คน: 3 customer, 1 admin) หน้าเว็บส่งให้เองหลังเข้าสู่ระบบ
 - endpoint ที่ยังไม่ทำตอบ `501` พร้อมชื่อผู้รับผิดชอบ หน้าเว็บแสดงว่า "ยังไม่เปิดใช้งาน"
 - path เดิมของ A2 (ไม่มี `/api/v1`) ยังใช้ได้ Postman collection เดิมใช้ต่อได้
