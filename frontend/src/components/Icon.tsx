@@ -10,6 +10,9 @@ const PATHS = {
   refresh: 'M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5',
   chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z',
   send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z',
+  sidebar: 'M4 5h16v14H4zM9 5v14',
+  panelRight: 'M4 5h16v14H4zM15 5v14',
+  user: 'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   wrench: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z',
 } as const;
 
@@ -37,10 +40,12 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 /** Initials avatar — no photos are stored (data minimisation). */
 export function Avatar({ name, size = 28 }: { name: string | null; size?: number }) {
   const label = (name ?? '?').trim();
+  // Thai words can start with a vowel sign (เ แ โ ใ ไ): take the first consonant instead.
+  const initial = (w: string) => [...w].find((ch) => !'เแโใไ'.includes(ch)) ?? w[0] ?? '?';
   const initials = label
     .split(/\s+/)
     .slice(0, 2)
-    .map((w) => w[0])
+    .map(initial)
     .join('')
     .toUpperCase();
   const hue = [...label].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);

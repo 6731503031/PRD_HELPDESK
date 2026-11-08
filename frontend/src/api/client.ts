@@ -2,7 +2,7 @@
  * The ONLY place the UI talks to the backend.
  * Adds the Identity-stub headers and turns error responses into typed errors.
  */
-import type { Category, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User } from './types';
+import type { Category, Comment, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User } from './types';
 
 const BASE = '/api/v1';
 
@@ -58,6 +58,12 @@ const post = (body: unknown) => ({ method: 'POST', body: JSON.stringify(body) })
 const patch = (body: unknown) => ({ method: 'PATCH', body: JSON.stringify(body) });
 
 export const api = {
+  // sign-in (Identity stub): a guest gets an id from a self-declared name; nothing is verified
+  me: () => request<{ data: User }>('/me').then((r) => r.data),
+  createGuest: (name: string, email: string) => request<{ data: User }>('/auth/guest', post({ name, email })).then((r) => r.data),
+  updateProfile: (name: string, email: string) =>
+    request<{ data: User }>('/me', { method: 'PUT', body: JSON.stringify({ name, email }) }).then((r) => r.data),
+
   // reference
   users: () => request<{ data: User[] }>('/users').then((r) => r.data),
   categories: (all = false) => request<{ data: Category[] }>(`/categories${all ? '?all=true' : ''}`).then((r) => r.data),
@@ -78,7 +84,10 @@ export const api = {
   resolve: (id: number, note: string) =>
     request<{ data: Ticket }>(`/tickets/${id}/resolve`, post({ resolution_note: note })).then((r) => fix(r.data)),
 
-  // Chat (F11/F12) was removed from the UI in Use Case v1.1; the backend comments module is P2's call.
+  // chat (F11): one conversation per ticket, requester <-> admin. No internal notes (PRD v1.1).
+  comments: (id: number) => request<{ data: Comment[] }>(`/tickets/${id}/comments`).then((r) => r.data),
+  addComment: (id: number, content: string) =>
+    request<{ data: Comment }>(`/tickets/${id}/comments`, post({ content })).then((r) => r.data),
 
   // maintenance (P3)
   linkWorkOrder: (id: number, workOrderId: string) =>

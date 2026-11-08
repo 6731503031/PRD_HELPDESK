@@ -3,7 +3,6 @@
 export type Role = 'customer' | 'admin';
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
-export type Visibility = 'public' | 'internal';
 
 export type User = { id: number; full_name: string; role: Role; email: string };
 export type Category = { id: number; name: string; description: string | null; is_active: number };
@@ -51,7 +50,6 @@ export type Comment = {
   author_name: string | null;
   author_role: Role | null;
   content: string;
-  visibility: Visibility;
   created_at: string;
 };
 

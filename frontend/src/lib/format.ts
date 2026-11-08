@@ -67,6 +67,30 @@ const dateOnly = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' });
 export const formatDateTime = (v: string | null) => (v ? dateTime.format(toDate(v)) : '–');
 export const formatDate = (v: string | null) => (v ? dateOnly.format(toDate(v)) : '–');
 
+const timeOnly = new Intl.DateTimeFormat('th-TH', { hour: '2-digit', minute: '2-digit' });
+export const formatTime = (v: string) => timeOnly.format(toDate(v));
+
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+export const sameDay = (a: string, b: string) => dayKey(toDate(a)) === dayKey(toDate(b));
+/** Messages within 5 minutes of each other count as one burst (Messenger-style grouping). */
+export const closeInTime = (a: string, b: string) => Math.abs(toDate(a).getTime() - toDate(b).getTime()) < 5 * 60000;
+
+/** "วันนี้" / "เมื่อวาน" / date — for day dividers in a conversation. */
+export function dayLabel(v: string): string {
+  const d = toDate(v);
+  const now = new Date();
+  if (dayKey(d) === dayKey(now)) return 'วันนี้';
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (dayKey(d) === dayKey(yesterday)) return 'เมื่อวาน';
+  return dateOnly.format(d);
+}
+
+/** Right-hand time in a conversation list: time today, otherwise the day. */
+export function listTime(v: string): string {
+  const d = toDate(v);
+  return dayKey(d) === dayKey(new Date()) ? timeOnly.format(d) : dayLabel(v) === 'เมื่อวาน' ? 'เมื่อวาน' : dateOnly.format(d);
+}
+
 /** "3 ชั่วโมงที่แล้ว" — for queue age. */
 export function age(v: string): string {
   const mins = Math.max(0, Math.round((Date.now() - toDate(v).getTime()) / 60000));

@@ -10,7 +10,7 @@ import type { Category, Priority, TicketDetail as Detail } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, ROUTE_LABEL, formatDateTime, isRepairDone, maintenanceLabel, statusLabel } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
-import { Avatar } from './Icon';
+import { Avatar, Icon } from './Icon';
 import { ErrorNotice, Field, Loading, Notice, Panel, PriorityText, StatusBadge, StatusTrack } from './ui';
 
 export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => void }) {
@@ -36,6 +36,9 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
           <h1>{t.title}</h1>
         </div>
         <div className="pagebar__actions">
+          <a className="btn btn--secondary btn--small" href={`#/chat/${t.id}`}>
+            <Icon name="chat" size={16} /> แชท
+          </a>
           <PriorityText priority={t.priority} />
           <StatusBadge status={t.status} />
         </div>

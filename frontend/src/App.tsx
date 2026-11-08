@@ -4,9 +4,12 @@
  *   Requester (customer)        Admin (runs the Helpdesk)
  *   #/new      Create ticket     #/queue        Dashboard + ticket list
  *   #/my       My tickets        #/queue/:id    Ticket workspace
- *   #/my/:id   Ticket status     #/admin        Admin (admin only)
+ *   #/my/:id   Ticket status     #/admin        Manage categories
+ *   #/chat     Messages          #/chat         Messages
+ *   #/profile  My details        #/staff        Admin sign-in (separate link, not shown to requesters)
  *
  * Two roles only. The admin does not file tickets, so never sees the requester screens.
+ * The left sidebar folds into an icon rail (state remembered in this browser).
  */
 import { useEffect } from 'react';
 import { isStaff, useIdentity } from './auth/identity';
@@ -16,32 +19,40 @@ import { Loading, Notice } from './components/ui';
 import { ROLE_LABEL } from './lib/format';
 import { match, navigate, usePath } from './lib/router';
 import { Admin } from './pages/Admin';
+import { Messages } from './pages/Messages';
+import { Profile } from './pages/Profile';
 import { Dashboard } from './pages/Dashboard';
 import { CreateTicket } from './pages/CreateTicket';
 import { Login } from './pages/Login';
+import { usePersisted } from './lib/usePersisted';
 import { MyTickets } from './pages/MyTickets';
 
 export function App() {
   const { user, ready, signOut, error } = useIdentity();
   const path = usePath();
   const staff = isStaff(user);
+  const [navOpen, setNavOpen] = usePersisted('helpdesk.sidebar', true);
 
   // Each role lands on its own screens only.
   useEffect(() => {
     if (!user) return;
     if (path === '/') navigate(staff ? '/queue' : '/new');
-    else if (staff && (path === '/new' || path.startsWith('/my'))) navigate('/queue');
+    else if (path === '/staff') navigate(staff ? '/queue' : '/new');
+    else if (staff && (path === '/new' || path === '/profile' || path.startsWith('/my'))) navigate('/queue');
     else if (!staff && (path.startsWith('/queue') || path === '/admin')) navigate('/my');
   }, [path, user, staff]);
 
   const nav: { href: string; label: string; icon: IconName }[] = staff
     ? [
         { href: '/queue', label: 'แดชบอร์ด', icon: 'dashboard' },
+        { href: '/chat', label: 'ข้อความ', icon: 'chat' },
         { href: '/admin', label: 'จัดการหมวดหมู่', icon: 'settings' },
       ]
     : [
         { href: '/new', label: 'แจ้งปัญหาใหม่', icon: 'plus' },
         { href: '/my', label: 'คำร้องของฉัน', icon: 'ticket' },
+        { href: '/chat', label: 'ข้อความ', icon: 'chat' },
+        { href: '/profile', label: 'ข้อมูลของฉัน', icon: 'user' },
       ];
 
   let page = null;
@@ -52,6 +63,9 @@ export function App() {
   else if (path === '/queue') page = <Dashboard />;
   else if ((params = match('/queue/:id', path))) page = <Dashboard selectedId={Number(params.id)} />;
   else if (path === '/admin') page = <Admin />;
+  else if (path === '/chat') page = <Messages />;
+  else if ((params = match('/chat/:id', path))) page = <Messages selectedId={Number(params.id)} />;
+  else if (path === '/profile') page = <Profile />;
 
   const skip = (
     <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>
@@ -73,15 +87,26 @@ export function App() {
   return (
     <>
       {skip}
-      <div className="shell">
+      <div className={`shell${navOpen ? '' : ' shell--collapsed'}`}>
         <aside className="sidebar">
-          <a className="brand" href={`#${staff ? '/queue' : '/new'}`}>
-            <Logo size={36} />
-            <span className="brand__name">
-              Helpdesk
-              <span className="brand__sub">University Digital Campus</span>
-            </span>
-          </a>
+          <div className="sidebar__top">
+            <a className="brand" href={`#${staff ? '/queue' : '/new'}`}>
+              <Logo size={36} />
+              <span className="brand__name">
+                Helpdesk
+                <span className="brand__sub">University Digital Campus</span>
+              </span>
+            </a>
+            <button
+              className="icon-btn sidebar-toggle"
+              onClick={() => setNavOpen(!navOpen)}
+              aria-expanded={navOpen}
+              aria-label={navOpen ? 'ย่อเมนู' : 'ขยายเมนู'}
+              title={navOpen ? 'ย่อเมนู' : 'ขยายเมนู'}
+            >
+              <Icon name="sidebar" />
+            </button>
+          </div>
 
           {user && (
             <div className="usercard">
@@ -96,18 +121,18 @@ export function App() {
           <nav className="side-nav" aria-label="เมนูหลัก">
             {user &&
               nav.map((n) => (
-                <a key={n.href} href={`#${n.href}`} aria-current={path.startsWith(n.href) ? 'page' : undefined}>
+                <a key={n.href} href={`#${n.href}`} title={n.label} aria-current={path.startsWith(n.href) ? 'page' : undefined}>
                   <Icon name={n.icon} />
-                  {n.label}
+                  <span className="side-label">{n.label}</span>
                 </a>
               ))}
           </nav>
 
           {user && (
             <div className="sidebar__foot">
-              <button className="side-out" onClick={signOut}>
+              <button className="side-out" onClick={signOut} title="ออกจากระบบ">
                 <Icon name="logout" />
-                ออกจากระบบ
+                <span className="side-label">ออกจากระบบ</span>
               </button>
               <p className="sidebar__credit">Student Support Pod, Team 14</p>
             </div>
