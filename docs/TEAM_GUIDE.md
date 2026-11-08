@@ -12,7 +12,7 @@ Helpdesk Team 14 · Deadline **อังคาร 10 พ.ย. 2026**
 | คน | ดูแล | โฟลเดอร์ที่เป็นเจ้าของ | ฟีเจอร์ | ชื่อ |
 |---|---|---|---|---|
 | **P1** หัวหน้า | Core + Tickets + **หน้าบ้านทั้งหมด** + git/deploy + เอกสาร | `frontend/`, `backend/src/core/`, `backend/src/modules/tickets/`, `backend/src/modules/reference/`, `backend/src/index.ts`, `database/` | F01–F10, F25, F26, F27, F28 | ____ |
-| **P2** | Comments + Events | `backend/src/modules/comments/`, `backend/src/modules/events/` | F11, F12, F15–F18 | ____ |
+| **P2** | Comments + Events | `backend/src/modules/comments/`, `backend/src/modules/events/` | F11, F15–F18 | ____ |
 | **P3** | API เชื่อมกับ Team 10 (+ Wellbeing เดิม) | `backend/src/modules/maintenance/`, `backend/src/modules/wellbeing/`, `scripts/send-mock-maintenance-event.mjs` | F13, F14, F29, F30 | ____ |
 | **P4** | AI + Admin API | `backend/src/ai/`, `backend/src/modules/admin/` | F19–F21, F31, F23, F24 | ____ |
 
@@ -44,8 +44,8 @@ git + ส่งงาน
 - [ ] deploy + รัน migration บน production (ข้อ 6)
 
 ### P2: Comments + Events
-- [x] **F11/F12** แชทในคำร้อง (`comments/`) ทำให้แล้ว: API + rules + test ผ่าน + หน้าจอแชท (รีเฟรชเองทุก 8 วินาที)
-- [ ] อ่าน `comments/routes.ts` + `comments/rules.ts` จนอธิบายได้ (พรีเซนต์ต้องอธิบายว่าทำไมผู้แจ้งไม่เห็นบันทึกภายใน)
+- [x] **F11** แชทในคำร้อง (`comments/`) ทำให้แล้ว: API + rules + test ผ่าน + หน้าจอแชทแบบ Messenger ที่ `/#/chat` (รีเฟรชเองทุก 8 วินาที) · บันทึกภายใน (F12) ตัดออกจาก PRD 1.1 และถอดออกจากโค้ดแล้ว
+- [ ] อ่าน `comments/routes.ts` + `comments/rules.ts` จนอธิบายได้ (พรีเซนต์ต้องอธิบายว่าใครอ่าน/เขียนแชทของคำร้องไหนได้ และทำไมผู้แจ้งคนอื่นเปิดไม่ได้ → 403)
 - [ ] ต่อยอดแชท (เลือกทำ): ส่ง event `ticket.commented` · ตัวนับข้อความที่ยังไม่อ่านในแดชบอร์ด · ดูจาก `TODO(P2)` ในไฟล์
 - [ ] **F15/F16/F18** `events/publish.ts` → เก็บลงตาราง `domain_events` (ห้าม throw)
 - [ ] **F17** `events/escalation.ts` → `isEscalationDue()` + `runEscalation()` แล้วลบ `.skip` ใน `backend/test/escalation.test.ts`
@@ -105,7 +105,7 @@ bash scripts/smoke.sh  # ทดสอบ API ทั้งระบบ (ต้อ
 ### กฎ 5 ข้อ
 1. **ห้าม push ขึ้น `main` ตรง ๆ** ทุกอย่างผ่าน Pull Request (PR)
 2. **1 งาน = 1 branch = 1 worktree** ชื่อ branch `<คน>/<งาน>` เช่น `p2/events`, `p3/webhook`, `p4/ai-fallback` (สร้างด้วย `npm run wt:new`)
-3. **commit เล็ก ๆ บ่อย ๆ** ข้อความขึ้นต้นด้วยประเภท: `feat(comments): add internal visibility rule`
+3. **commit เล็ก ๆ บ่อย ๆ** ข้อความขึ้นต้นด้วยประเภท: `feat(comments): reject empty messages`
    ประเภท: `feat` ฟีเจอร์ใหม่ · `fix` แก้บั๊ก · `test` เพิ่ม test · `docs` เอกสาร · `refactor` จัดโค้ด
 4. **PR ต้องผ่าน CI (เครื่องหมายถูกสีเขียว) + เพื่อน 1 คน approve** ก่อน merge
 5. **ห้าม commit secret** (`.dev.vars` ถูก ignore ไว้แล้ว อย่าเอาออก)
@@ -186,6 +186,7 @@ Settings → Branches → Add rule สำหรับ `main` → ติ๊ก *R
 
 ```bash
 npm run db:remote:migrate                       # ครั้งเดียว: เพิ่มตารางใหม่บน production
+npm run db:remote:update                        # migration 0003 + 0004 (guest + ลบบันทึกภายใน) ต้องได้รับอนุมัติก่อน
 npx wrangler secret put MAINTENANCE_WEBHOOK_SECRET
 npm run deploy                                  # build หน้าเว็บ + deploy Worker
 BASE=https://helpdesk-api.team-helpdesk.workers.dev bash scripts/smoke.sh
@@ -213,7 +214,7 @@ BASE=https://helpdesk-api.team-helpdesk.workers.dev bash scripts/smoke.sh
 | 1 | P1 | ปัญหา, PRD, ผู้ใช้ 3 role, architecture, data ownership, auth | `backend/src/core/auth.ts`, `tickets/rules.ts` |
 | 2 | P1 + P4 | Demo หน้าเว็บ (P1) + อธิบาย AI แนะนำ/fallback (P4): ผู้แจ้งสร้างคำร้อง + AI แนะนำ → admin คัดกรอง/แชท/ปิดงาน | หน้าเว็บสด |
 | 3 | P3 | Integration Team 10: proposal, webhook, HMAC, ส่ง mock event สด | `maintenance/routes.ts`, script |
-| 4 | P2 | ข้อความ public/internal, events, escalation | `comments/rules.ts`, `escalation.ts` |
+| 4 | P2 | แชทในคำร้อง, events, escalation | `comments/rules.ts`, `escalation.ts` |
 | 5 | P1 | Tests (`npm test`), CI, limitations, future work | GitHub Actions + PR history |
 
-**Limitations ที่ต้องพูดเอง:** Identity เป็น stub · ถ้า Team 10 ยังไม่พร้อม webhook ทดสอบกับ mock
+**Limitations ที่ต้องพูดเอง:** Identity เป็น stub (ผู้แจ้งบอกชื่อเอง ไม่ยืนยัน · ใครมีลิงก์ `/#/staff` ก็เป็น Admin ได้ · ล้างข้อมูลเบราว์เซอร์แล้วเข้าคำร้องเดิมไม่ได้ ดู PRD §20.1) · ถ้า Team 10 ยังไม่พร้อม webhook ทดสอบกับ mock

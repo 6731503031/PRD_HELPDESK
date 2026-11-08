@@ -3,7 +3,7 @@
 
 **Version:** 1.1 Final  
 **Status:** Final / Submission Candidate  
-**Changes from 1.0:** two roles only (Requester, Admin); no Agent role and no ticket assignment; technology direction updated to the stack actually built (§17).  
+**Changes from 1.0:** two roles only (Requester, Admin); no Agent role and no ticket assignment; technology direction updated to the stack actually built (§17); a ticket has one chat between the Requester and the Admin, and **internal notes were cut**; sign-in uses a documented Identity stub with a self-declared display name (§20.1).  
 **Product:** Helpdesk Platform  
 **Team:** Team 14
 
@@ -21,7 +21,7 @@ The Helpdesk Platform addresses this by providing:
 - One structured place to create support tickets.
 - A clear ticket status and ownership model.
 - An admin dashboard for support operations.
-- Public and internal comments.
+- Chat on each ticket between the requester and the Admin.
 - Integration with the Maintenance platform without duplicating Maintenance data.
 - Events that other university platforms can consume.
 - AI-assisted triage with a deterministic fallback.
@@ -44,7 +44,7 @@ Capabilities:
 - Create a ticket.
 - View their own tickets.
 - View ticket status and history.
-- Add public comments.
+- Chat with the Admin on their own tickets.
 - Track resolution.
 
 ### Admin
@@ -54,7 +54,7 @@ Capabilities:
 - Manage categories (add, deactivate).
 - View the Admin Dashboard of all tickets and basic ticket counts.
 - Triage tickets: change category, priority, and status.
-- Chat with the requester on a ticket (public comments) and add internal notes.
+- Chat with the requester on a ticket.
 - Link a ticket to a Maintenance work-order ID (Team 10).
 - Resolve tickets.
 
@@ -74,8 +74,7 @@ Physical repair work is done by the Maintenance platform (Team 10) through its o
 - My Tickets
 - Ticket Detail / Status
 - Admin Dashboard
-- Public comments
-- Internal comments
+- Ticket chat (requester and Admin)
 - Ticket resolution
 - Maintenance work-order linking
 - Basic Admin category management
@@ -157,7 +156,7 @@ After successful ticket creation, Helpdesk shall publish `ticket.created`.
 A requester shall be able to view tickets they created, including Ticket ID, subject, category, priority, status, and last update.
 
 ### FR-06 — Ticket Detail
-A requester shall be able to open their own ticket and view ticket details, current status, status history, comments, and resolution information when available.
+A requester shall be able to open their own ticket and view ticket details, current status, status history, chat messages, and resolution information when available.
 
 ### FR-07 — Ownership
 A requester shall not be able to view another requester's private ticket. The Admin may access all tickets.
@@ -171,11 +170,11 @@ Not required. With a single staff role there is nobody to assign to; the Admin h
 ### FR-10 — Triage
 The Admin shall be able to review and change category, priority, and status. The Admin's final decision overrides AI suggestions.
 
-### FR-11 — Public Comments
-Requesters and the Admin shall be able to add public comments to a ticket. They are shown as a chat on the ticket.
+### FR-11 — Ticket Chat
+Requesters and the Admin shall be able to exchange messages on a ticket: one conversation per ticket, shown as a chat. A requester can read and write only in the chat of their own tickets; the Admin can do so on every ticket. Real-time push is out of scope (§2): new messages appear by periodic refresh. The chat is between the Requester and the Admin only; the Maintenance team (Team 10) is never part of it.
 
-### FR-12 — Internal Comments
-The Admin shall be able to add internal comments (notes). Internal comments shall not be visible to Requesters.
+### FR-12 — Internal Comments (removed in 1.1)
+Not required. Every message on a ticket is visible to both the Requester and the Admin.
 
 ### FR-13 — Resolve Ticket
 The Admin shall be able to resolve a ticket with an optional resolution note. The system shall publish `ticket.resolved`.
@@ -303,7 +302,7 @@ Keyword + urgency rules
 | GET | `/tickets/me` | List requester's tickets |
 | GET | `/tickets/{id}` | Get ticket details |
 | PATCH | `/tickets/{id}` | Update allowed ticket fields |
-| POST | `/tickets/{id}/comments` | Add a comment |
+| GET / POST | `/tickets/{id}/comments` | Read / send messages in the ticket chat |
 | POST | `/tickets/{id}/resolve` | Resolve a ticket |
 
 ### 9.2 Supporting Integration Endpoints
@@ -326,7 +325,7 @@ It accepts ticket intake information and returns validated suggestions for categ
 
 **Category** — id, name, active/deactivated state.
 
-**Comment** — id, ticket_id, author_id, content, visibility, timestamp.
+**Comment** (chat message) — id, ticket_id, author_id, content, timestamp.
 
 ### 10.2 User Reference
 Helpdesk may maintain a local identity representation/reference for requester and comment author. Authentication credentials remain owned by Identity.
@@ -391,7 +390,7 @@ Identity owns authentication credentials. Helpdesk shall not store passwords or 
 
 ### Authorization
 - Requester → own tickets
-- Admin → all tickets, triage, comments, Maintenance link, resolve, categories
+- Admin → all tickets, triage, chat, Maintenance link, resolve, categories
 
 ### Maintenance Webhook Security
 Incoming Maintenance events must be authenticated/verified before they are trusted. HMAC or an equivalent agreed mechanism may be used.
@@ -431,8 +430,8 @@ Then `ticket.escalated` is published.
 ## 15. Business Rules
 
 - **BR-01:** A requester can access their own tickets; the Admin can access all tickets.
-- **BR-02:** Only the Admin can change category, priority, status, Maintenance link, and internal comments.
-- **BR-03:** Internal comments are not visible to Requesters.
+- **BR-02:** Only the Admin can change category, priority, status, and the Maintenance link. A requester may fix the title and description of their own ticket while it is still Open.
+- **BR-03:** (removed in 1.1) There are no internal notes; the chat of a ticket is visible to both sides.
 - **BR-04:** Helpdesk stores only the Maintenance Work Order ID and does not duplicate the Maintenance record.
 - **BR-05:** AI suggestions are advisory; the requester/Admin makes the final decision.
 - **BR-06:** If AI cannot provide a valid recommendation, deterministic category/urgency rules are used.
@@ -487,7 +486,7 @@ At least seven automated tests are required:
 1. Create ticket
 2. Ticket ownership/access control
 3. Admin-only triage (requesters cannot change status/priority)
-4. Comment
+4. Comment (ticket chat between requester and Admin)
 5. Resolve
 6. Maintenance link
 7. Escalation event
@@ -495,7 +494,7 @@ At least seven automated tests are required:
 Additional recommended tests:
 - AI suggestion validation
 - AI fallback behavior
-- Internal comment visibility
+- Chat access: another requester cannot read a ticket's chat
 - Maintenance webhook verification
 - Duplicate event handling
 - Unauthorized ticket access
@@ -514,7 +513,7 @@ The MVP is functionally complete when:
 - The Admin can access the dashboard of all tickets.
 - The Admin can change category/priority/status.
 - The Admin can manage categories.
-- Public and internal comments work with correct visibility.
+- A requester and the Admin can chat on a ticket; another requester cannot read it.
 - A Maintenance Work Order can be linked by ID.
 - `maintenance.status_changed` can update the linked ticket.
 - `ticket.created` is published.
@@ -528,13 +527,23 @@ The MVP is functionally complete when:
 
 | Risk | Mitigation |
 |---|---|
-| Identity integration unavailable | Use a documented development stub while preserving the Identity contract |
+| Identity integration unavailable | Use a documented development stub while preserving the Identity contract (§20.1) |
 | AI unavailable | Deterministic fallback rules |
 | AI produces invalid values | Validate against allowed categories/priorities/routes |
 | Maintenance integration changes | Keep integration behind a stable webhook/API contract |
 | Unauthorized ticket access | Enforce authorization at application and data layers |
 | Event delivery failure | Use a reliable event publishing strategy and observable failures |
 | Scope becomes too large | Keep MVP focused on Ticket-domain ownership and required integrations |
+
+### 20.1 Identity stub as built (1.1)
+
+Until the university Identity is available, sign-in is a stub that verifies nothing:
+
+- **Requester:** clicks "เข้าสู่ระบบ" and, the first time only, gives a display name (and an optional contact email). The server issues a guest id (1000 and up) with the role `customer` only; the browser remembers it, so the next click goes straight in. The Admin role can never be created this way.
+- **Admin:** opens a separate link (`/#/staff`) and clicks once. The link is not shown on the requester page.
+- Helpdesk stores no password. The display name and contact email are self-declared and never verified.
+
+Known limitations (to be stated when presenting): anyone with the Admin link can sign in as Admin; a requester who clears the browser data or changes device becomes a new guest and cannot reach earlier tickets; request headers can be forged. Real sign-in replaces only `identity.ts` and `auth.ts` on the server and the sign-in screen; the rest of the system keeps using the same user id and role.
 
 ## 21. Future Improvements
 
@@ -545,6 +554,9 @@ Potential post-MVP improvements include:
 - Mobile applications
 - Rich attachments
 - Additional staff roles and ticket assignment, if the Helpdesk grows
+- Real sign-in through the university Identity / SSO (replaces the §20.1 stub)
+- A dedicated Messages inbox with last-message preview and unread counts
+- Internal notes for the Admin, if the team needs them
 - Advanced analytics dashboards
 - More configurable workflows
 - More sophisticated AI routing
@@ -562,7 +574,7 @@ Its responsibility is to:
 3. Assist triage using AI.
 4. Provide a deterministic fallback.
 5. Track status and ownership by requester.
-6. Support communication through comments.
+6. Support communication through the ticket chat.
 7. Link to external Maintenance work orders.
 8. Resolve tickets.
 9. Publish platform events.
