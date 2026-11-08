@@ -10,7 +10,7 @@ React + TypeScript + Vite (หน้าบ้าน) · Cloudflare Workers + Hon
 ```
 PRD_HELPDESK/
 │
-├── frontend/                 หน้าบ้าน: React (ผู้ใช้เห็นและกด)                    P4
+├── frontend/                 หน้าบ้าน: React (ผู้ใช้เห็นและกด)                    P1
 │   ├── index.html
 │   ├── vite.config.ts        build ไป public/ ให้ Worker เสิร์ฟ
 │   └── src/
@@ -84,6 +84,7 @@ npm run dev                   # http://127.0.0.1:8787  (หน้าเว็บ
 | [docs/PRD.md](docs/PRD.md) | PRD v1.0: ขอบเขตและ requirement |
 | [docs/FEATURES.md](docs/FEATURES.md) | ฟีเจอร์ F01–F30 + สถานะ, ผู้ใช้ 3 role, API, tests |
 | [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md) | ใครทำอะไร (P1–P4), วิธีใช้ git, timeline |
+| [docs/Team-Roles.docx](docs/Team-Roles.docx) | แบ่งงาน 4 คนแบบอ่านง่าย: แผนภาพ, ฟีเจอร์ต่อคน, timeline |
 | [docs/Helpdesk-Maintenance-Integration-Proposal.docx](docs/Helpdesk-Maintenance-Integration-Proposal.docx) | ข้อเสนอเชื่อมกับ Team 10 Maintenance |
 | [docs/assignments/](docs/assignments/) | งาน A2 และ A5 ที่ส่งไปแล้ว |
 

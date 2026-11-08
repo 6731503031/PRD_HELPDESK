@@ -7,58 +7,69 @@ Helpdesk Team 14 · Deadline **อังคาร 10 พ.ย. 2026**
 
 ## 1. ภาพรวมการแบ่งงาน
 
-ระบบแบ่งเป็น **โมดูล** แต่ละคนถือโฟลเดอร์ของตัวเอง แก้ไฟล์ของตัวเองเป็นหลัก git จะชนกันน้อยที่สุด
+แต่ละคนถือโฟลเดอร์ของตัวเอง แก้ไฟล์ของตัวเองเป็นหลัก git จะชนกันน้อยที่สุด
 
-| คน | บทบาท | โฟลเดอร์ที่เป็นเจ้าของ | ฟีเจอร์ | ชื่อ (ใส่เอง) |
+| คน | ดูแล | โฟลเดอร์ที่เป็นเจ้าของ | ฟีเจอร์ | ชื่อ |
 |---|---|---|---|---|
-| **P1** | Core & Tickets + เอกสาร | `backend/src/core/`, `backend/src/modules/tickets/`, `backend/src/modules/reference/`, `backend/src/index.ts`, `database/schema.sql`, `database/migrations/`, `README.md`, `openapi.yaml` | F01–F10, F25, F28 | ____ |
-| **P2** | Comments & Events | `backend/src/modules/comments/`, `backend/src/modules/events/` | F11, F12, F15–F18 | ____ |
-| **P3** | Integrations (Team 10 + Team 16) | `backend/src/modules/maintenance/`, `backend/src/modules/wellbeing/`, `scripts/send-mock-maintenance-event.mjs` | F13, F14, F29, F30 + คุยกับ Team 10 | ____ |
-| **P4** | AI Triage + Admin + Frontend | `backend/src/ai/`, `backend/src/modules/admin/`, `frontend/` | F19–F24, F26, F27, F31 | ____ |
+| **P1** หัวหน้า | Core + Tickets + **หน้าบ้านทั้งหมด** + git/deploy + เอกสาร | `frontend/`, `backend/src/core/`, `backend/src/modules/tickets/`, `backend/src/modules/reference/`, `backend/src/index.ts`, `database/` | F01–F10, F25, F26, F27, F28 | ____ |
+| **P2** | Comments + Events | `backend/src/modules/comments/`, `backend/src/modules/events/` | F11, F12, F15–F18 | ____ |
+| **P3** | API เชื่อมกับ Team 10 (+ Wellbeing เดิม) | `backend/src/modules/maintenance/`, `backend/src/modules/wellbeing/`, `scripts/send-mock-maintenance-event.mjs` | F13, F14, F29, F30 | ____ |
+| **P4** | AI + Admin API | `backend/src/ai/`, `backend/src/modules/admin/` | F19–F21, F31, F23, F24 | ____ |
 
-**ไฟล์ส่วนกลาง** (`backend/src/core/*`, `backend/src/index.ts`, `database/schema.sql`, `frontend/src/api/client.ts`, `frontend/src/api/types.ts`) แก้ได้แต่ **ต้องให้ P1 review** ใน PR
+**ไฟล์ส่วนกลาง** (`backend/src/core/*`, `backend/src/index.ts`, `database/schema.sql`, `frontend/src/api/*`) แก้ได้แต่ **ต้องให้ P1 review** ใน PR
+**หน้าบ้านพร้อมแล้วทุกหน้า** P2–P4 ไม่ต้องแตะ `frontend/` ทำ API ให้ตรงสัญญา แล้วหน้าเว็บจะเลิกขึ้น "ยังไม่เปิดใช้งาน" เอง
 
 ---
 
 ## 2. งานของแต่ละคน (เปิดไฟล์แล้วค้นคำว่า `TODO(P2` เป็นต้น)
 
 ทุกไฟล์มีคอมเมนต์ `TODO(Px, Fyy)` บอกขั้นตอนทีละข้อ และมี **test ที่เขียนคำตอบไว้แล้ว** (ใส่ `.skip` ไว้)
-**วิธีรู้ว่าทำเสร็จ:** ลบ `.skip` ใน test ของตัวเอง → `npm test` ผ่าน → `bash scripts/smoke.sh` ข้อของตัวเองเปลี่ยนจาก 501 เป็นทำงาน
+**วิธีรู้ว่าเสร็จ:** ลบ `.skip` ใน test ของตัวเอง → `npm test` ผ่าน → `bash scripts/smoke.sh` ข้อของตัวเองเปลี่ยนจาก 501 เป็นทำงาน → เปิดหน้าเว็บแล้วใช้ได้จริง
 
-### P1: Core & Tickets + เอกสาร
-ส่วนใหญ่ทำงานได้แล้ว งานคือทำความเข้าใจ เก็บรายละเอียด และเป็นคน review/merge
-- [ ] อ่าน `backend/src/core/*` และ `backend/src/modules/tickets/*` จนอธิบายได้ (ตอนพรีเซนต์ต้องอธิบาย auth + ownership)
+### P1: หัวหน้า (Core + Tickets + Frontend + git)
+Backend
+- [ ] อ่าน `backend/src/core/*` และ `backend/src/modules/tickets/*` จนอธิบายได้ (พรีเซนต์ต้องอธิบาย auth + ownership)
 - [ ] **F25** `tickets/rules.ts` → `canTransition()` ตามตารางใน TODO → ลบ `.skip` ใน `backend/test/tickets.rules.test.ts` (describe Lifecycle)
-- [ ] เขียน `openapi.yaml` (OpenAPI 3.1) จากตาราง API ใน FEATURES.md ข้อ 5 (Definition of Done ของอาจารย์)
-- [ ] อัปเดต `README.md` + เขียน `RUNBOOK.md` 1 หน้า: health check (`/api/v1/health`), ถ้าระบบล่มทำอะไร, ใครดูแลส่วนไหน
-- [ ] รัน migration บน production ตอน deploy (ข้อ 6)
-- [ ] เป็นคน review PR ที่แตะไฟล์ส่วนกลาง
 
-### P2: Comments & Events
-- [ ] **F11/F12** `comments/rules.ts` → `canPost()`, `visibleTo()` แล้วลบ `.skip` ใน `backend/test/comments.test.ts`
-- [ ] **F11/F12** `comments/routes.ts` → GET/POST `/tickets/:id/comments` ตาม TODO (หน้าเว็บเรียกอยู่แล้ว)
-- [ ] **F15/F16/F18** `events/publish.ts` → เก็บลงตาราง `domain_events` + POST ไป `EVENT_HUB_URL` ถ้ามี (ห้าม throw)
-- [ ] **F17** `events/escalation.ts` → `isEscalationDue()` + `runEscalation()` แล้วลบ `.skip` ใน `backend/test/escalation.test.ts`
-- [ ] ทดสอบ cron บนเครื่อง: `npx wrangler dev --test-scheduled` แล้วเปิด `http://127.0.0.1:8787/__scheduled`
-
-### P3: Integrations (Team 10 Maintenance)
-- [ ] ส่งเอกสาร `docs/Helpdesk-Maintenance-Integration-Proposal.docx` ให้ Team 10 และตามคำตอบ 10 ข้อ
-- [ ] **F29** `maintenance/signature.ts` → `verifyWebhook()` แล้วลบ `.skip` ชุด signature ใน `backend/test/maintenance.test.ts`
-- [ ] **F14** `maintenance/mapping.ts` → `mapWorkOrderStatus()` (ใช้ค่า status จริงของ Team 10 เมื่อได้คำตอบ)
-- [ ] **F13** `maintenance/client.ts` + route `link-maintenance`
-- [ ] **F14** route `webhooks/maintenance` ตาม TODO 8 ขั้น
-- [ ] **F30** ใส่ secret: คัดลอก `dev.vars.example` เป็น `.dev.vars` (เครื่องตัวเอง) และ `wrangler secret put MAINTENANCE_WEBHOOK_SECRET` (production)
-- [ ] ทดสอบด้วย mock: `MAINTENANCE_WEBHOOK_SECRET=dev-secret npm run mock:maintenance -- WO-0045 in_progress`
-- [ ] ถ้า Team 10 พร้อม: เทสต์ร่วม 8 ข้อตามเอกสาร proposal เก็บ screenshot + correlation ID
-
-### P4: AI Triage + Admin + Frontend
-- [ ] **F21** `ai/fallback.ts` → `suggestFallback()` (จับคำทั้งคำด้วย `\b`) แล้วลบ `.skip` ใน `backend/test/ai.test.ts`
-- [ ] **F20** `validateAiOutput()` · **F19** `ai/ai.ts` → `askAi()` · route `/tickets/suggest`
-- [ ] **F31** `ai/record.ts` → `pickSuggestion()` (ใช้ร่วมกับ route `/tickets/suggest`) + `recordSuggestion()` เก็บคำแนะนำลงคำร้องหลังสร้าง แล้วลบ `.skip` ชุด F31 ใน `backend/test/ai.test.ts` → เปิดคำร้องในคิวงานจะเห็นกล่อง "ระบบแนะนำ"
-- [ ] Log prompt ของ AI โดย **ไม่มี** ชื่อ/อีเมลผู้ใช้ (PRD กลางกำหนด)
-- [ ] **F23/F24** `admin/routes.ts` → stats + จัดการหมวด (หน้า Admin เรียกอยู่แล้ว)
-- [ ] **F27** ตรวจ accessibility: ใช้ Tab ทุกหน้าได้, ทุกช่องมี label, ทดสอบมือถือ, ตรวจด้วย Lighthouse
+Frontend
+- [ ] เมื่อเพื่อน merge API แต่ละตัว เปิดหน้าที่เกี่ยวข้องแล้วลองใช้จริง: ข้อความ (P2) → หน้ารายละเอียดคำร้อง · ผูกใบงาน (P3) → คิวงาน · ขอคำแนะนำ + กล่อง "ระบบแนะนำ" (P4) → หน้าแจ้งปัญหา/คิวงาน · สถิติ/หมวด (P4) → หน้าผู้ดูแล
+- [ ] **F27** ตรวจ accessibility: Tab ได้ทุกหน้า, ทุกช่องมี label, ทดสอบจอมือถือ, Lighthouse
 - [ ] (ถ้าทัน) Playwright 1 เทสต์: สร้างคำร้อง → เห็นในคำร้องของฉัน
+- [ ] แก้หน้าเว็บแบบเห็นผลทันที: 2 terminal → `npm run dev` + `npm run dev:web` → http://localhost:5173
+
+git + ส่งงาน
+- [ ] merge scaffold (`feat/final-scaffold`) เข้า `main` · ให้เจ้าของ repo เพิ่มเพื่อนเป็น Collaborator + ตั้ง branch rule
+- [ ] review ทุก PR ที่แตะไฟล์ส่วนกลาง · merge ตามลำดับในข้อ 5
+- [ ] เขียน `openapi.yaml` จากตาราง API ใน FEATURES.md ข้อ 5 + `RUNBOOK.md` 1 หน้า
+- [ ] deploy + รัน migration บน production (ข้อ 6)
+
+### P2: Comments + Events
+- [ ] **F11/F12** `comments/rules.ts` → `canPost()`, `visibleTo()` แล้วลบ `.skip` ใน `backend/test/comments.test.ts`
+- [ ] **F11/F12** `comments/routes.ts` → GET/POST `/tickets/:id/comments` ตาม TODO
+- [ ] **F15/F16/F18** `events/publish.ts` → เก็บลงตาราง `domain_events` (ห้าม throw)
+- [ ] **F17** `events/escalation.ts` → `isEscalationDue()` + `runEscalation()` แล้วลบ `.skip` ใน `backend/test/escalation.test.ts`
+- [ ] ทดสอบ cron: `npx wrangler dev --test-scheduled` แล้วเปิด `http://127.0.0.1:8787/__scheduled`
+- [ ] เช็กในหน้าเว็บ: เจ้าหน้าที่เขียนข้อความภายใน → ผู้แจ้งต้องมองไม่เห็น
+
+### P3: API เชื่อมกับ Team 10
+- [ ] ส่งเอกสาร `docs/Helpdesk-Maintenance-Integration-Proposal.docx` ให้ Team 10 และตามคำตอบ (ข้อ 1, 2, 3, 6, 7, 9 ต้องได้ก่อน)
+- [ ] **F29** `maintenance/signature.ts` → `verifyWebhook()` แล้วลบ `.skip` ชุด signature ใน `backend/test/maintenance.test.ts`
+- [ ] **F14** `maintenance/mapping.ts` → `mapWorkOrderStatus()` ใช้สถานะจริงของ Team 10
+- [ ] **F13** `maintenance/client.ts` + route `POST /tickets/:id/link-maintenance`
+- [ ] **F14** route `POST /webhooks/maintenance` ตาม TODO 8 ขั้น
+- [ ] **F30** secret: `cp dev.vars.example .dev.vars` (เครื่องตัวเอง) · `wrangler secret put MAINTENANCE_WEBHOOK_SECRET` (production)
+- [ ] ทดสอบด้วย mock: `MAINTENANCE_WEBHOOK_SECRET=dev-secret npm run mock:maintenance -- WO-0045 in_progress`
+- [ ] เทสต์ร่วม 8 ข้อกับ Team 10 เก็บ screenshot + correlation ID (ไม่พร้อม → ใช้ mock)
+
+### P4: AI + Admin API
+- [ ] **F21** `ai/fallback.ts` → `suggestFallback()` (จับคำทั้งคำด้วย `\b`)
+- [ ] **F20** `ai/fallback.ts` → `validateAiOutput()`
+- [ ] **F19** `ai/ai.ts` → `askAi()` + route `POST /tickets/suggest` ใน `ai/routes.ts`
+- [ ] **F31** `ai/record.ts` → `pickSuggestion()` + `recordSuggestion()` (เก็บคำแนะนำลงคำร้องหลังสร้าง)
+- [ ] ลบ `.skip` ใน `backend/test/ai.test.ts` ทั้งสองชุด
+- [ ] ห้ามมีชื่อ/อีเมลผู้ใช้ใน prompt หรือ log
+- [ ] **F23/F24** `admin/routes.ts` → สถิติ + เพิ่ม/ปิดหมวดหมู่
+- [ ] เช็กในหน้าเว็บ: "แอร์ห้อง B-204 ไม่เย็น" → ขอคำแนะนำได้ Facility / สูง / ส่งต่อฝ่ายซ่อมบำรุง และในคิวงานเห็นกล่อง "ระบบแนะนำ"
 
 ---
 
@@ -84,7 +95,7 @@ npm test               # unit tests
 bash scripts/smoke.sh  # ทดสอบ API ทั้งระบบ (ต้องรัน npm run dev ค้างไว้)
 ```
 
-แก้หน้าเว็บแบบเห็นผลทันที (P4): เปิด 2 terminal → `npm run dev` + `npm run dev:web` → เปิด http://localhost:5173
+แก้หน้าเว็บแบบเห็นผลทันที: เปิด 2 terminal → `npm run dev` + `npm run dev:web` → เปิด http://localhost:5173
 
 ---
 
@@ -141,7 +152,7 @@ Settings → Branches → Add rule สำหรับ `main` → ติ๊ก *R
 ## 5. ลำดับ merge (กันพัง)
 
 0. **Scaffold** (`feat/final-scaffold`) → merge เข้า main ก่อน ทุกคนเริ่มจากตรงนี้
-1. งานที่ไม่ขึ้นกับใคร merge ได้ตลอด: P2 comments, P4 fallback/admin, P1 lifecycle/OpenAPI
+1. งานที่ไม่ขึ้นกับใคร merge ได้ตลอด: P2 comments, P4 AI/admin, P1 lifecycle/OpenAPI/หน้าเว็บ
 2. P3 webhook merge หลังทดสอบกับ mock ผ่าน
 3. P2 events merge ท้ายสุด (แตะจุดที่โมดูลอื่นเรียก)
 
@@ -176,7 +187,7 @@ BASE=https://helpdesk-api.team-helpdesk.workers.dev bash scripts/smoke.sh
 | ลำดับ | ใคร | เนื้อหา | เปิดให้ดู |
 |---|---|---|---|
 | 1 | P1 | ปัญหา, PRD, ผู้ใช้ 3 role, architecture, data ownership, auth | `backend/src/core/auth.ts`, `tickets/rules.ts` |
-| 2 | P4 | Demo หน้าเว็บ: ผู้แจ้งสร้างคำร้อง + AI แนะนำ → เจ้าหน้าที่คัดกรอง/มอบหมาย | หน้าเว็บสด |
+| 2 | P1 + P4 | Demo หน้าเว็บ (P1) + อธิบาย AI แนะนำ/fallback (P4): ผู้แจ้งสร้างคำร้อง + AI แนะนำ → เจ้าหน้าที่คัดกรอง/มอบหมาย | หน้าเว็บสด |
 | 3 | P3 | Integration Team 10: proposal, webhook, HMAC, ส่ง mock event สด | `maintenance/routes.ts`, script |
 | 4 | P2 | ข้อความ public/internal, events, escalation | `comments/rules.ts`, `escalation.ts` |
 | 5 | P1 | Tests (`npm test`), CI, limitations, future work | GitHub Actions + PR history |
