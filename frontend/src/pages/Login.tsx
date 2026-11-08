@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import type { Role, User } from '../api/types';
 import { useIdentity } from '../auth/identity';
+import { Logo } from '../components/Logo';
 import { Notice } from '../components/ui';
 import { ROLE_LABEL } from '../lib/format';
 
@@ -23,6 +24,7 @@ export function Login() {
   return (
     <div className="login">
       <section className="login__intro" aria-labelledby="login-title">
+        <Logo size={72} />
         <p className="login__platform">University Digital Campus</p>
         <h1 id="login-title">Helpdesk</h1>
         <p className="login__lead">แจ้งปัญหาการใช้งาน อุปกรณ์ อาคาร และบัญชีผู้ใช้ ได้ในที่เดียว และติดตามได้ว่าคำร้องอยู่ขั้นไหน</p>

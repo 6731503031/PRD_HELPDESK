@@ -23,6 +23,7 @@ import {
   STATUSES,
   WELLBEING_SLUGS,
   canAssign,
+  canBeAssignee,
   canResolve,
   canTransition,
   canViewTicket,
@@ -125,7 +126,7 @@ async function patchTicket(c: Context<AppEnv>) {
   }
   if ('assigned_agent_id' in fields && fields.assigned_agent_id !== null) {
     const agent = verify(Number(fields.assigned_agent_id));
-    if (!agent || !isStaff(agent.role)) throw badRequest('assigned_agent_id ต้องเป็น agent หรือ admin');
+    if (!agent || !canBeAssignee(agent.role)) throw badRequest('assigned_agent_id ต้องเป็นเจ้าหน้าที่ (agent)');
   }
   if ('wellbeing_service_slug' in fields && fields.wellbeing_service_slug !== null &&
       !WELLBEING_SLUGS.includes(fields.wellbeing_service_slug as never)) {
@@ -170,9 +171,9 @@ ticketRoutes.post('/tickets/:id/assign', async (c) => {
   if (!check.ok) throw forbidden(check.reason!);
 
   const body = await readJson<{ agent_id?: number }>(c);
-  const agentId = Number(body.agent_id ?? user.id); // default = assign to myself
+  const agentId = Number(body.agent_id ?? user.id); // default = assign to myself (agents)
   const agent = verify(agentId);
-  if (!agent || !isStaff(agent.role)) throw badRequest('agent_id ต้องเป็น agent หรือ admin');
+  if (!agent || !canBeAssignee(agent.role)) throw badRequest('agent_id ต้องเป็นเจ้าหน้าที่ (agent) ผู้ดูแลระบบรับงานเองไม่ได้');
 
   const to: TicketStatus = ticket.status === 'open' ? 'assigned' : ticket.status;
   await updateTicket(c.env.DB, ticket.id, { assigned_agent_id: agentId, status: to });

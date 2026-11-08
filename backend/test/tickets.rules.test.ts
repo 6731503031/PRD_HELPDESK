@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canAssign,
+  canBeAssignee,
   canResolve,
   canTransition,
   canViewTicket,
@@ -85,5 +86,13 @@ describe.skip('Lifecycle (PRD §14)', () => {
   it('never reopens a closed ticket', () => {
     expect(canTransition('closed', 'open')).toBe(false);
     expect(canTransition('closed', 'in_progress')).toBe(false);
+  });
+});
+
+describe('who can be assigned (FR-09)', () => {
+  it('assigns tickets to agents only, never to admins or requesters', () => {
+    expect(canBeAssignee('agent')).toBe(true);
+    expect(canBeAssignee('admin')).toBe(false);
+    expect(canBeAssignee('customer')).toBe(false);
   });
 });

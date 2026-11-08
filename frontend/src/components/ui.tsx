@@ -60,11 +60,48 @@ export function ErrorNotice({ error }: { error: unknown }) {
   );
 }
 
-export function Loading({ label = 'กำลังโหลด…' }: { label?: string }) {
+/**
+ * Loading placeholder. Skeleton shapes match what is coming, so the screen never looks empty.
+ *   text      → a few lines (default)
+ *   table     → list rows
+ *   dashboard → number cards + list rows
+ *   detail    → ticket workspace (main + side column)
+ */
+export function Loading({ label = 'กำลังโหลด…', variant = 'text' }: { label?: string; variant?: 'text' | 'table' | 'dashboard' | 'detail' }) {
+  const lines = (n: number) =>
+    Array.from({ length: n }, (_, i) => <span key={i} className="sk sk--line" style={{ width: `${92 - ((i * 17) % 40)}%` }} />);
+  const rows = (n: number) =>
+    Array.from({ length: n }, (_, i) => (
+      <div key={i} className="sk-row">
+        <span className="sk sk--chip" />
+        <span className="sk sk--line" style={{ width: `${70 - ((i * 13) % 30)}%` }} />
+        <span className="sk sk--chip" />
+      </div>
+    ));
   return (
-    <p className="muted" role="status" aria-live="polite">
-      {label}
-    </p>
+    <div className={`skeleton skeleton--${variant}`} role="status" aria-live="polite" aria-busy="true">
+      <span className="visually-hidden">{label}</span>
+      {variant === 'text' && <div className="sk-stack">{lines(3)}</div>}
+      {variant === 'table' && <div className="sk-stack">{rows(6)}</div>}
+      {variant === 'dashboard' && (
+        <>
+          <div className="stats">{Array.from({ length: 5 }, (_, i) => <span key={i} className="sk sk--card" />)}</div>
+          <div className="panel"><div className="panel__body sk-stack">{rows(7)}</div></div>
+        </>
+      )}
+      {variant === 'detail' && (
+        <>
+          <div className="sk-stack" style={{ marginBottom: 24 }}>
+            <span className="sk sk--line" style={{ width: 120 }} />
+            <span className="sk sk--title" />
+          </div>
+          <div className="layout-ticket">
+            <div className="panel"><div className="panel__body sk-stack">{lines(5)}</div></div>
+            <div className="panel"><div className="panel__body sk-stack">{lines(6)}</div></div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -96,7 +133,20 @@ export function Field({
   );
 }
 
-export function Panel({ title, action, quiet, children }: { title?: string; action?: ReactNode; quiet?: boolean; children: ReactNode }) {
+export function Panel({
+  title,
+  action,
+  quiet,
+  flush,
+  children,
+}: {
+  title?: string;
+  action?: ReactNode;
+  quiet?: boolean;
+  /** true = children draw their own padding (chat, full-bleed lists) */
+  flush?: boolean;
+  children: ReactNode;
+}) {
   return (
     <section className={`panel${quiet ? ' panel--quiet' : ''}`} aria-label={title}>
       {title && (
@@ -105,7 +155,7 @@ export function Panel({ title, action, quiet, children }: { title?: string; acti
           {action}
         </div>
       )}
-      <div className="panel__body">{children}</div>
+      {flush ? children : <div className="panel__body">{children}</div>}
     </section>
   );
 }

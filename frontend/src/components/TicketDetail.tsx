@@ -2,124 +2,162 @@
  * Ticket detail — shared by My Tickets (requester) and Agent Queue (staff).
  * PRD FR-06 (detail, status, history, comments, resolution), §6 maintenance status.
  */
-import { useState, type FormEvent } from 'react';
-import { api } from '../api/client';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { NotReadyError, api } from '../api/client';
 import type { Category, Comment, Priority, TicketDetail as Detail, User, Visibility } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, ROUTE_LABEL, STATUS_LABEL, formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { Avatar, Icon } from './Icon';
 import { ErrorNotice, Field, Loading, Notice, Panel, PriorityText, StatusBadge, StatusTrack } from './ui';
 
 export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => void }) {
   const { user } = useIdentity();
   const { data: t, error, loading, reload } = useAsync(() => api.ticket(id), [id, user?.id]);
 
-  if (loading && !t) return <Loading />;
+  if (loading && !t) return <Loading variant="detail" />;
   if (error) return <ErrorNotice error={error} />;
   if (!t) return null;
 
+  const staff = isStaff(user);
   const changed = () => {
     void reload();
     onChanged?.();
   };
 
   return (
-    <div>
-      <Panel
-        title={t.title}
-        action={<StatusBadge status={t.status} />}
-      >
-        <p className="muted small" style={{ marginBottom: 16 }}>
-          คำร้องเลขที่ <strong>{t.ticket_number}</strong>
-        </p>
-        <StatusTrack status={t.status} />
+    <>
+      <div className="pagebar">
+        <div>
+          <p className="muted small">คำร้องเลขที่ <strong>{t.ticket_number}</strong></p>
+          <h1>{t.title}</h1>
+        </div>
+        <div className="pagebar__actions">
+          <PriorityText priority={t.priority} />
+          <StatusBadge status={t.status} />
+        </div>
+      </div>
 
-        <dl className="meta" style={{ marginTop: 24 }}>
-          <dt>หมวดหมู่</dt>
-          <dd>{t.category_name ?? '–'}</dd>
-          <dt>ความเร่งด่วน</dt>
-          <dd><PriorityText priority={t.priority} /></dd>
-          <dt>ผู้แจ้ง</dt>
-          <dd>{t.customer_name ?? `#${t.customer_id}`}</dd>
-          <dt>ผู้รับผิดชอบ</dt>
-          <dd>{t.agent_name ?? 'ยังไม่มีผู้รับเรื่อง'}</dd>
-          <dt>แจ้งเมื่อ</dt>
-          <dd>{formatDateTime(t.created_at)}</dd>
-          <dt>อัปเดตล่าสุด</dt>
-          <dd>{formatDateTime(t.updated_at)}</dd>
-        </dl>
+      <div className="layout-ticket">
+        {/* Main: progress, problem, system hints, conversation */}
+        <div>
+          <Panel>
+            <StatusTrack status={t.status} />
+            <h3 style={{ marginTop: 24 }}>รายละเอียดปัญหา</h3>
+            <p className="description" style={{ marginTop: 8 }}>{t.description}</p>
 
-        <h3 style={{ marginTop: 24 }}>รายละเอียด</h3>
-        <p className="description" style={{ marginTop: 8 }}>{t.description}</p>
+            {staff && <SystemSuggestion ticket={t} />}
 
-        {isStaff(user) && <SystemSuggestion ticket={t} />}
+            {t.maintenance_work_order_id && (
+              <div style={{ marginTop: 24 }}>
+                <Notice tone="info" title={`ส่งต่อฝ่ายซ่อมบำรุงแล้ว ใบงาน ${t.maintenance_work_order_id}`}>
+                  <p>
+                    สถานะงานซ่อม: {t.maintenance_status ?? 'รอการตอบรับจากฝ่ายซ่อมบำรุง'}
+                    {t.maintenance_status_at && <span className="muted"> (อัปเดต {formatDateTime(t.maintenance_status_at)})</span>}
+                  </p>
+                </Notice>
+              </div>
+            )}
 
-        {t.maintenance_work_order_id && (
-          <div style={{ marginTop: 24 }}>
-            <Notice tone="info" title={`ส่งต่อฝ่ายซ่อมบำรุงแล้ว ใบงาน ${t.maintenance_work_order_id}`}>
-              <p>
-                สถานะงานซ่อม: {t.maintenance_status ?? 'รอการตอบรับจากฝ่ายซ่อมบำรุง'}
-                {t.maintenance_status_at && <span className="muted"> (อัปเดต {formatDateTime(t.maintenance_status_at)})</span>}
-              </p>
-            </Notice>
-          </div>
-        )}
+            {t.status === 'resolved' || t.status === 'closed' ? (
+              <div style={{ marginTop: 24 }}>
+                <Notice tone="ok" title={`แก้ไขแล้วเมื่อ ${formatDateTime(t.resolved_at)}`}>
+                  {t.resolution_note && <p>{t.resolution_note}</p>}
+                </Notice>
+              </div>
+            ) : null}
+          </Panel>
 
-        {t.status === 'resolved' || t.status === 'closed' ? (
-          <div style={{ marginTop: 24 }}>
-            <Notice tone="ok" title={`แก้ไขแล้วเมื่อ ${formatDateTime(t.resolved_at)}`}>
-              {t.resolution_note && <p>{t.resolution_note}</p>}
-            </Notice>
-          </div>
-        ) : null}
-      </Panel>
+          <Chat ticketId={t.id} />
+        </div>
 
-      {isStaff(user) && <AgentActions ticket={t} onChanged={changed} />}
+        {/* Side: properties, staff actions, history */}
+        <div>
+          <Panel title="ข้อมูลคำร้อง">
+            <dl className="meta">
+              <dt>หมวดหมู่</dt>
+              <dd><span className="chip">{t.category_name ?? '–'}</span></dd>
+              <dt>ความเร่งด่วน</dt>
+              <dd><PriorityText priority={t.priority} /></dd>
+              <dt>ผู้แจ้ง</dt>
+              <dd className="person"><Avatar name={t.customer_name} size={22} /> {t.customer_name ?? `#${t.customer_id}`}</dd>
+              <dt>ผู้รับผิดชอบ</dt>
+              <dd className="person">
+                {t.agent_name ? <><Avatar name={t.agent_name} size={22} /> {t.agent_name}</> : <span className="muted">ยังไม่มีผู้รับเรื่อง</span>}
+              </dd>
+              <dt>แจ้งเมื่อ</dt>
+              <dd>{formatDateTime(t.created_at)}</dd>
+              <dt>อัปเดตล่าสุด</dt>
+              <dd>{formatDateTime(t.updated_at)}</dd>
+            </dl>
+          </Panel>
 
-      <Comments ticketId={t.id} />
+          {staff && <AgentActions ticket={t} onChanged={changed} />}
 
-      <Panel title="ประวัติสถานะ">
-        {t.history.length === 0 ? (
-          <p className="muted">ยังไม่มีการเปลี่ยนสถานะ</p>
-        ) : (
-          <ol className="history">
-            {t.history.map((h, i) => (
-              <li key={i}>
-                <strong>{STATUS_LABEL[h.to_status as keyof typeof STATUS_LABEL] ?? h.to_status}</strong>
-                {h.note && <span> — {h.note}</span>}
-                <time>
-                  {formatDateTime(h.created_at)}
-                  {h.source === 'maintenance' ? ' โดยฝ่ายซ่อมบำรุง' : h.changed_by_name ? ` โดย ${h.changed_by_name}` : ''}
-                </time>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Panel>
-    </div>
+          <Panel title="ประวัติสถานะ">
+            {t.history.length === 0 ? (
+              <p className="muted">ยังไม่มีการเปลี่ยนสถานะ</p>
+            ) : (
+              <ol className="history">
+                {t.history.map((h, i) => (
+                  <li key={i}>
+                    <strong>{STATUS_LABEL[h.to_status as keyof typeof STATUS_LABEL] ?? h.to_status}</strong>
+                    {h.note && <span> — {h.note}</span>}
+                    <time>
+                      {formatDateTime(h.created_at)}
+                      {h.source === 'maintenance' ? ' โดยฝ่ายซ่อมบำรุง' : h.changed_by_name ? ` โดย ${h.changed_by_name}` : ''}
+                    </time>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Panel>
+        </div>
+      </div>
+    </>
   );
 }
 
 /* ---------------------------------------------------------------------------
-   Comments (P2 backend) — FR-11 public, FR-12 internal
+   Chat (P2 backend) — FR-11 public messages, FR-12 internal notes (staff only).
+   Required by the PRD, so it stays; shown as a chat window instead of a form.
    --------------------------------------------------------------------------- */
-function Comments({ ticketId }: { ticketId: number }) {
+function Chat({ ticketId }: { ticketId: number }) {
   const { user } = useIdentity();
   const staff = isStaff(user);
-  const { data, error, loading, reload } = useAsync(() => api.comments(ticketId), [ticketId, user?.id]);
+  const { data, error, loading, refresh, setData } = useAsync(() => api.comments(ticketId), [ticketId, user?.id]);
   const [text, setText] = useState('');
-  const [visibility, setVisibility] = useState<Visibility>('public');
+  const [internal, setInternal] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<unknown>(null);
+  const logRef = useRef<HTMLDivElement>(null);
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const notReady = error instanceof NotReadyError;
+
+  // Keep the newest message in view.
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
+  }, [data?.length]);
+
+  // Quiet polling while the tab is visible, so replies show up without a page reload.
+  // TODO(P2): swap for push (WebSocket / Durable Object) if you have time — not required by the PRD.
+  useEffect(() => {
+    if (notReady || error) return;
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [notReady, error, refresh]);
+
+  const send = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (!text.trim() || sending) return;
     setSending(true);
     setSendError(null);
     try {
-      await api.addComment(ticketId, text, visibility);
+      const added = await api.addComment(ticketId, text.trim(), (internal ? 'internal' : 'public') as Visibility);
       setText('');
-      void reload();
+      setData((prev) => [...(prev ?? []), added]); // show it at once, then poll keeps it in sync
     } catch (err) {
       setSendError(err);
     } finally {
@@ -128,59 +166,67 @@ function Comments({ ticketId }: { ticketId: number }) {
   };
 
   return (
-    <Panel title="การสนทนา">
-      {loading && !data ? (
-        <Loading />
-      ) : error ? (
-        <ErrorNotice error={error} />
-      ) : data && data.length === 0 ? (
-        <p className="muted">ยังไม่มีข้อความ</p>
-      ) : (
-        <div className="thread">
-          {data?.map((c: Comment) => (
-            <article key={c.id} className={`comment${c.visibility === 'internal' ? ' comment--internal' : ''}`}>
-              <span className="comment__by">{c.author_name ?? `#${c.author_id}`}</span>
-              {c.visibility === 'internal' && <span className="comment__tag">บันทึกภายใน ผู้แจ้งมองไม่เห็น</span>}
-              <span className="comment__when">{formatDateTime(c.created_at)}</span>
-              <p>{c.content}</p>
-            </article>
-          ))}
+    <Panel flush title={staff ? 'แชทกับผู้แจ้ง' : 'แชทกับเจ้าหน้าที่'} action={<Icon name="chat" />}>
+      <div className="chat">
+        <div className="chat__log" ref={logRef} aria-live="polite">
+          {loading && !data ? (
+            <Loading variant="text" label="กำลังโหลดข้อความ…" />
+          ) : notReady ? (
+            <p className="chat__empty">แชทยังไม่เปิดใช้งาน กำลังพัฒนาโดย P2</p>
+          ) : error ? (
+            <ErrorNotice error={error} />
+          ) : !data?.length ? (
+            <p className="chat__empty">ยังไม่มีข้อความ เริ่มพิมพ์ด้านล่างได้เลย</p>
+          ) : (
+            data.map((c: Comment) => {
+              const mine = c.author_id === user?.id;
+              const isInternal = c.visibility === 'internal';
+              return (
+                <div key={c.id} className={`msg${mine ? ' msg--mine' : ''}${isInternal ? ' msg--internal' : ''}`}>
+                  <span className="msg__meta">
+                    {mine ? 'คุณ' : c.author_name ?? `#${c.author_id}`}, {formatDateTime(c.created_at)}
+                    {isInternal && <span className="msg__tag"> บันทึกภายใน</span>}
+                  </span>
+                  <div className="msg__bubble">{c.content}</div>
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
 
-      <form className="form" onSubmit={submit} style={{ marginTop: 24 }}>
-        <Field id={`comment-${ticketId}`} label="เขียนข้อความ">
+        {sendError ? <div className="chat__note"><ErrorNotice error={sendError} /></div> : null}
+
+        <form className="chat__composer" onSubmit={send}>
+          <label className="visually-hidden" htmlFor={`chat-${ticketId}`}>พิมพ์ข้อความ</label>
           <textarea
-            id={`comment-${ticketId}`}
-            className="textarea"
-            style={{ minHeight: 90 }}
+            id={`chat-${ticketId}`}
+            className="textarea chat__input"
+            rows={1}
+            placeholder={notReady ? 'แชทยังไม่เปิดใช้งาน' : 'พิมพ์ข้อความ… (Enter ส่ง, Shift+Enter ขึ้นบรรทัดใหม่)'}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            disabled={notReady}
             maxLength={2000}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
           />
-        </Field>
-        {staff && (
-          <fieldset className="field">
-            <legend>ใครเห็นข้อความนี้</legend>
-            <div className="choice-row">
-              <label className="choice">
-                <input type="radio" name={`vis-${ticketId}`} checked={visibility === 'public'} onChange={() => setVisibility('public')} />
-                ผู้แจ้งและเจ้าหน้าที่
-              </label>
-              <label className="choice">
-                <input type="radio" name={`vis-${ticketId}`} checked={visibility === 'internal'} onChange={() => setVisibility('internal')} />
-                เฉพาะเจ้าหน้าที่ (บันทึกภายใน)
-              </label>
-            </div>
-          </fieldset>
-        )}
-        {sendError ? <ErrorNotice error={sendError} /> : null}
-        <div className="form-actions">
-          <button className="btn" type="submit" disabled={sending || !text.trim()}>
-            {sending ? 'กำลังส่ง…' : 'ส่งข้อความ'}
+          <button className="btn" type="submit" disabled={notReady || sending || !text.trim()} aria-label="ส่งข้อความ">
+            <Icon name="send" size={16} />
           </button>
-        </div>
-      </form>
+        </form>
+        {staff && !notReady && (
+          <div className="chat__options">
+            <label>
+              <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
+              บันทึกภายใน (ผู้แจ้งมองไม่เห็น)
+            </label>
+          </div>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -193,6 +239,7 @@ function Comments({ ticketId }: { ticketId: number }) {
  * Advisory only — the agent's own triage decision is what counts. Data filled by recordSuggestion (F31, P4).
  */
 function SystemSuggestion({ ticket: t }: { ticket: Detail }) {
+  if (t.status === 'resolved' || t.status === 'closed') return null; // nothing left to triage
   if (!t.ai_source || !t.ai_route) {
     return <p className="muted small" style={{ marginTop: 24 }}>ยังไม่มีคำแนะนำจากระบบสำหรับคำร้องนี้</p>;
   }
@@ -222,10 +269,13 @@ function SystemSuggestion({ ticket: t }: { ticket: Detail }) {
 function AgentActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => void }) {
   const { user, users } = useIdentity();
   const { data: categories } = useAsync(() => api.categories(), []);
-  const agents = users.filter((u: User) => u.role !== 'customer');
+  // FR-09: tickets go to Helpdesk agents only — admins manage the system, they don't take tickets.
+  const agents = users.filter((u: User) => u.role === 'agent');
   const closed = ticket.status === 'resolved' || ticket.status === 'closed';
 
-  const [agentId, setAgentId] = useState<number>(ticket.assigned_agent_id ?? user?.id ?? 0);
+  const [agentId, setAgentId] = useState<number>(
+    ticket.assigned_agent_id ?? (user?.role === 'agent' ? user.id : agents[0]?.id ?? 0),
+  );
   const [priority, setPriority] = useState<Priority>(ticket.priority);
   const [categoryId, setCategoryId] = useState<number>(ticket.category_id);
   const [workOrder, setWorkOrder] = useState('');
@@ -274,7 +324,7 @@ function AgentActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                 </option>
               ))}
             </select>
-            <button className="btn" disabled={!!busy} onClick={() => run('assign', () => api.assign(ticket.id, agentId), 'มอบหมายงานแล้ว')}>
+            <button className="btn" disabled={!!busy || !agentId} onClick={() => run('assign', () => api.assign(ticket.id, agentId), 'มอบหมายงานแล้ว')}>
               มอบหมาย
             </button>
           </div>

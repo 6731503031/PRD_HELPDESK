@@ -44,8 +44,9 @@ git + ส่งงาน
 - [ ] deploy + รัน migration บน production (ข้อ 6)
 
 ### P2: Comments + Events
-- [ ] **F11/F12** `comments/rules.ts` → `canPost()`, `visibleTo()` แล้วลบ `.skip` ใน `backend/test/comments.test.ts`
-- [ ] **F11/F12** `comments/routes.ts` → GET/POST `/tickets/:id/comments` ตาม TODO
+- [x] **F11/F12** แชทในคำร้อง (`comments/`) ทำให้แล้ว: API + rules + test ผ่าน + หน้าจอแชท (รีเฟรชเองทุก 8 วินาที)
+- [ ] อ่าน `comments/routes.ts` + `comments/rules.ts` จนอธิบายได้ (พรีเซนต์ต้องอธิบายว่าทำไมผู้แจ้งไม่เห็นบันทึกภายใน)
+- [ ] ต่อยอดแชท (เลือกทำ): ส่ง event `ticket.commented` · ตัวนับข้อความที่ยังไม่อ่านในแดชบอร์ด · ดูจาก `TODO(P2)` ในไฟล์
 - [ ] **F15/F16/F18** `events/publish.ts` → เก็บลงตาราง `domain_events` (ห้าม throw)
 - [ ] **F17** `events/escalation.ts` → `isEscalationDue()` + `runEscalation()` แล้วลบ `.skip` ใน `backend/test/escalation.test.ts`
 - [ ] ทดสอบ cron: `npx wrangler dev --test-scheduled` แล้วเปิด `http://127.0.0.1:8787/__scheduled`

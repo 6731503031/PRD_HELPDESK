@@ -66,7 +66,7 @@ export function isAgentOrAdmin(role: Role): boolean {
   return role === 'agent' || role === 'admin';
 }
 
-/** Helper for validation in POST /tickets/:id/assign. */
+/** Tickets are assigned to agents only (see canBeAssignee in tickets/rules.ts). */
 export function isAssignableAgent(role: Role): boolean {
-  return role === 'agent' || role === 'admin';
+  return role === 'agent';
 }

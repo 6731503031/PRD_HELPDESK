@@ -111,6 +111,11 @@ export function canAssign(user: AuthUser, ticket: Pick<Ticket, 'status'>): { ok:
   return { ok: true };
 }
 
+/** FR-09: tickets are assigned to Helpdesk agents only — admins manage the system, they don't own tickets. */
+export function canBeAssignee(role: Role | undefined): boolean {
+  return role === 'agent';
+}
+
 /** FR-13: only staff can resolve, and not twice. */
 export function canResolve(user: AuthUser, ticket: Pick<Ticket, 'status'>): { ok: boolean; reason?: string } {
   if (!isStaff(user.role)) return { ok: false, reason: 'เฉพาะเจ้าหน้าที่เท่านั้นที่ปิดงานได้' };

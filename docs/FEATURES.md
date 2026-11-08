@@ -95,8 +95,8 @@ PRD กลางบังคับ 3 หน้าหลัก: **แจ้งป
 
 | # | ฟีเจอร์ | PRD | สถานะ |
 |---|---|---|---|
-| F11 | ข้อความสาธารณะ (ผู้แจ้ง + เจ้าหน้าที่) | FR-11 | 🖥️ ⏳ P2 |
-| F12 | บันทึกภายใน (ผู้แจ้งมองไม่เห็น) | FR-12, BR-03 | 🖥️ ⏳ P2 |
+| F11 | ข้อความสาธารณะ (ผู้แจ้ง + เจ้าหน้าที่) ในรูปแบบแชท | FR-11 | ✅ |
+| F12 | บันทึกภายใน (ผู้แจ้งมองไม่เห็น) | FR-12, BR-03 | ✅ |
 
 ### D. Events — P2
 
@@ -141,7 +141,7 @@ PRD กลางบังคับ 3 หน้าหลัก: **แจ้งป
 | F27 | Accessibility: label ทุกช่อง, ใช้ keyboard ได้, focus ชัด, skip link, responsive | §16 | ✅ พื้นฐาน, P1 ตรวจซ้ำ |
 | — | Automated tests ≥ 7 ตัว | §18 | 4/7 ผ่าน, 3 รอเพื่อน (ดูข้อ 6) |
 
-**สรุป 31 ข้อ:** ✅ เสร็จ 14 ข้อ · 🖥️⏳ หน้าจอพร้อม รอ backend 7 ข้อ · ⏳ ยังไม่ทำ 10 ข้อ
+**สรุป 31 ข้อ:** ✅ เสร็จ 16 ข้อ · 🖥️⏳ หน้าจอพร้อม รอ backend 5 ข้อ · ⏳ ยังไม่ทำ 10 ข้อ
 
 ---
 
@@ -180,7 +180,7 @@ endpoint ที่ยังไม่ทำจะตอบ `501` พร้อม�
 | 1 | Create ticket | `backend/test/tickets.rules.test.ts` | P1 | ✅ ผ่าน |
 | 2 | Ownership / access control | `backend/test/tickets.rules.test.ts` | P1 | ✅ ผ่าน |
 | 3 | Assignment | `backend/test/tickets.rules.test.ts` | P1 | ✅ ผ่าน |
-| 4 | Comment | `backend/test/comments.test.ts` | P2 | ⏳ `.skip` |
+| 4 | Comment | `backend/test/comments.test.ts` | P2 | ✅ ผ่าน |
 | 5 | Resolve | `backend/test/tickets.rules.test.ts` | P1 | ✅ ผ่าน |
 | 6 | Maintenance link / webhook | `backend/test/maintenance.test.ts` | P3 | ⏳ `.skip` |
 | 7 | Escalation event | `backend/test/escalation.test.ts` | P2 | ⏳ `.skip` |
