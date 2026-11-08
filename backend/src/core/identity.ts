@@ -64,6 +64,10 @@ export function verify(externalId: number): IdentityRef | null {
   return USER_DIRECTORY[externalId] ?? null;
 }
 
+/** Guests (anonymous requesters, see profiles.ts) get ids from here up; the static directory stays below. */
+export const GUEST_ID_MIN = 1000;
+export const isGuestId = (id: number) => Number.isInteger(id) && id >= GUEST_ID_MIN;
+
 /** Helper for route handlers. */
 export function isAdmin(role: Role): boolean {
   return role === 'admin';

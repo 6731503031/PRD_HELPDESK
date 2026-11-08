@@ -13,7 +13,7 @@
  */
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../../core/env';
-import { verify } from '../../core/identity';
+import { findIdentity } from '../../core/profiles';
 import { ApiError, badRequest, conflict, forbidden, notFound, parseId, readJson } from '../../core/http';
 import { recordSuggestion } from '../../ai/record';
 import { publishEvent } from '../events/publish';
@@ -37,10 +37,13 @@ import {
   listTickets,
   recordStatus,
   updateTicket,
-  withNames,
+  attachNames,
 } from './repo';
 
 export const ticketRoutes = new Hono<AppEnv>();
+
+/** One ticket with the requester's display name (guest or directory). */
+const named = async (c: Context<AppEnv>, t: Parameters<typeof attachNames>[1][number]) => (await attachNames(c.env.DB, [t]))[0];
 
 async function loadVisible(c: Context<AppEnv>, id: number) {
   const ticket = await getTicket(c.env.DB, id);
@@ -58,7 +61,7 @@ ticketRoutes.post('/tickets', async (c) => {
   const input = parsed.value;
   const customerId = input.customer_id ?? user.id;
   if (!isStaff(user.role) && customerId !== user.id) throw forbidden('สร้าง ticket ได้เฉพาะของตัวเอง');
-  if (!verify(customerId)) throw badRequest('customer_id ไม่มีใน Identity');
+  if (!(await findIdentity(c.env.DB, customerId))) throw badRequest('customer_id ไม่มีใน Identity');
   if (!(await categoryIsActive(c.env.DB, input.category_id))) throw badRequest('หมวดหมู่นี้ไม่มีหรือถูกปิดใช้งาน');
 
   const id = await insertTicket(c.env.DB, { ...input, customer_id: customerId });
@@ -67,13 +70,13 @@ ticketRoutes.post('/tickets', async (c) => {
   await publishEvent(c.env, 'ticket.created', ticket); // FR-04
   // PRD §8.1: keep the triage suggestion for the admin — runs after the response, never blocks creation (F31, P4)
   c.executionCtx.waitUntil(recordSuggestion(c.env, ticket));
-  return c.json({ message: 'Ticket created', data: withNames(ticket) }, 201);
+  return c.json({ message: 'Ticket created', data: await named(c, ticket) }, 201);
 });
 
 // ---------- FR-05 My tickets ----------
 ticketRoutes.get('/tickets/me', async (c) => {
   const rows = await listTickets(c.env.DB, { customerId: c.get('user').id });
-  return c.json({ count: rows.length, data: rows.map(withNames) });
+  return c.json({ count: rows.length, data: await attachNames(c.env.DB, rows) });
 });
 
 // ---------- FR-08 Queue / list ----------
@@ -88,14 +91,14 @@ ticketRoutes.get('/tickets', async (c) => {
     priority,
     sort: q.sort === 'queue' ? 'queue' : 'recent',
   });
-  return c.json({ count: rows.length, data: rows.map(withNames) });
+  return c.json({ count: rows.length, data: await attachNames(c.env.DB, rows) });
 });
 
 // ---------- FR-06 Detail ----------
 ticketRoutes.get('/tickets/:id', async (c) => {
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
   const history = await getHistory(c.env.DB, ticket.id);
-  return c.json({ data: { ...withNames(ticket), history } });
+  return c.json({ data: { ...(await named(c, ticket)), history } });
 });
 
 // ---------- FR-10 Triage / edit ----------
@@ -139,7 +142,7 @@ async function patchTicket(c: Context<AppEnv>) {
   const updated = (await getTicket(c.env.DB, ticket.id))!;
   if (newStatus === 'resolved') await publishEvent(c.env, 'ticket.resolved', updated);
   else if (newStatus) await publishEvent(c.env, 'ticket.status_changed', updated, { from: ticket.status });
-  return c.json({ message: 'Ticket updated', data: withNames(updated) });
+  return c.json({ message: 'Ticket updated', data: await named(c, updated) });
 }
 ticketRoutes.patch('/tickets/:id', patchTicket);
 ticketRoutes.put('/tickets/:id', patchTicket);
@@ -171,5 +174,5 @@ ticketRoutes.post('/tickets/:id/resolve', async (c) => {
 
   const updated = (await getTicket(c.env.DB, ticket.id))!;
   await publishEvent(c.env, 'ticket.resolved', updated);
-  return c.json({ message: 'Ticket resolved', data: withNames(updated) });
+  return c.json({ message: 'Ticket resolved', data: await named(c, updated) });
 });

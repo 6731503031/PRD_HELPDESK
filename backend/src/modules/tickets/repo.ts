@@ -2,7 +2,7 @@
  * Ticket data access (D1). All SQL is parameterised.
  * Owner: P1 (Core & Tickets)
  */
-import { verify } from '../../core/identity';
+import { displayNames } from '../../core/profiles';
 import { QUEUE_ORDER_SQL, ticketNumber, type CreateInput, type Ticket, type TicketStatus } from './rules';
 
 export type TicketRow = Ticket & { category_name: string | null; ai_category_name: string | null };
@@ -12,10 +12,10 @@ const SELECT = `SELECT t.*, c.name AS category_name, ac.name AS ai_category_name
   LEFT JOIN ticket_categories c ON c.id = t.category_id
   LEFT JOIN ticket_categories ac ON ac.id = t.ai_category_id`;
 
-/** Adds display names from Identity (reference only — not stored, PRD §10.2). */
-export function withNames<T extends Pick<Ticket, 'customer_id'>>(t: T) {
-  const customer = verify(t.customer_id);
-  return { ...t, customer_name: customer?.displayName ?? null };
+/** Adds display names from Identity / guest profiles (reference only — not stored on the ticket, PRD §10.2). */
+export async function attachNames<T extends Pick<Ticket, 'customer_id'>>(db: D1Database, rows: T[]) {
+  const names = await displayNames(db, rows.map((r) => r.customer_id));
+  return rows.map((r) => ({ ...r, customer_name: names.get(r.customer_id) ?? null }));
 }
 
 export async function getTicket(db: D1Database, id: number): Promise<TicketRow | null> {
@@ -96,9 +96,10 @@ export async function getHistory(db: D1Database, ticketId: number) {
     )
     .bind(ticketId)
     .all<{ from_status: string | null; to_status: string; changed_by: number | null; source: string; note: string | null; created_at: string }>();
+  const names = await displayNames(db, (results ?? []).map((h) => h.changed_by));
   return (results ?? []).map((h) => ({
     ...h,
-    changed_by_name: h.changed_by != null ? verify(h.changed_by)?.displayName ?? null : null,
+    changed_by_name: h.changed_by != null ? names.get(h.changed_by) ?? null : null,
   }));
 }
 

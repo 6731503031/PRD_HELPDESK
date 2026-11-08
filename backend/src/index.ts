@@ -17,6 +17,7 @@ import { requireAuth, requireRole } from './core/auth';
 import { correlationId, handleError } from './core/http';
 
 import { referenceRoutes } from './modules/reference/routes';
+import { authRoutes } from './modules/auth/routes';
 import { ticketRoutes } from './modules/tickets/routes';
 import { commentRoutes } from './modules/comments/routes';
 import { maintenanceRoutes } from './modules/maintenance/routes';
@@ -41,9 +42,11 @@ api.get('/', (c) =>
 // Who must be signed in (Identity stub headers). Webhooks are NOT here — they use HMAC.
 api.use('/tickets', requireAuth);
 api.use('/tickets/*', requireAuth);
+api.use('/me', requireAuth); // /auth/guest is public: it is how a guest gets an id
 api.use('/admin/*', requireAuth, requireRole('admin'));
 
 api.route('/', referenceRoutes);   // P1
+api.route('/', authRoutes);        // P1 — guest sign-in + /me
 api.route('/', triageRoutes);      // P4 — before tickets so /tickets/suggest is matched first
 api.route('/', ticketRoutes);      // P1
 api.route('/', commentRoutes);     // P2

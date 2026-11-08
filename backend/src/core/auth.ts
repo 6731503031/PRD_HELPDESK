@@ -10,7 +10,8 @@
  */
 import type { MiddlewareHandler } from 'hono';
 import type { AppEnv } from './env';
-import { verify, type Role } from './identity';
+import type { Role } from './identity';
+import { findIdentity } from './profiles';
 import { ApiError, forbidden } from './http';
 
 const ROLES: Role[] = ['customer', 'admin'];
@@ -24,7 +25,7 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   }
   if (!ROLES.includes(declaredRole)) throw forbidden('role ไม่ถูกต้อง');
 
-  const identity = verify(Number(userId));
+  const identity = await findIdentity(c.env.DB, Number(userId));
   if (!identity) throw new ApiError(401, 'Unauthorized', 'ไม่พบผู้ใช้นี้ใน Identity');
   if (identity.role !== declaredRole) {
     throw forbidden(`role ไม่ตรงกับ Identity (Identity ระบุว่าเป็น ${identity.role})`);
