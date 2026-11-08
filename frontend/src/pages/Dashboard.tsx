@@ -12,7 +12,7 @@ import { TicketDetail } from '../components/TicketDetail';
 import { TicketTable } from '../components/TicketTable';
 import { ErrorNotice, Loading, Panel } from '../components/ui';
 import { useIdentity } from '../auth/identity';
-import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, isRepairDone } from '../lib/format';
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, isRepairDone, stageOf } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 
 type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'repaired' | 'done';
@@ -35,11 +35,12 @@ const CARDS: View[] = ['active', 'waiting', 'urgent', 'maintenance', 'repaired',
 /** Cards that turn red when they are not empty: work someone is waiting on. */
 const ALERT: View[] = ['urgent', 'repaired'];
 
+/** Same colours as the progress line on a ticket: blue, amber, green. */
 const STATUS_COLOR: Record<TicketStatus, string> = {
-  open: 'var(--st-open)',
-  in_progress: 'var(--st-progress)',
-  resolved: 'var(--st-resolved)',
-  closed: 'var(--st-closed)',
+  open: 'var(--fill-open)',
+  in_progress: 'var(--fill-progress)',
+  resolved: 'var(--fill-resolved)',
+  closed: 'var(--fill-resolved)',
 };
 
 export function Dashboard({ selectedId }: { selectedId?: number }) {
@@ -114,7 +115,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
             <div className="breakdown" aria-label="คำร้องทั้งหมดแยกตามสถานะ">
               <div className="bar">
                 {STATUS_ORDER.map((s) => {
-                  const n = all.filter((t) => t.status === s).length;
+                  const n = all.filter((t) => stageOf(t.status) === s).length;
                   // width + colour are data, so they stay inline
                   return n ? <span key={s} className="bar__seg" style={{ width: `${(n / all.length) * 100}%`, background: STATUS_COLOR[s] }} /> : null;
                 })}
@@ -123,7 +124,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
                 {STATUS_ORDER.map((s) => (
                   <span key={s} className="legend__item">
                     <span className="legend__dot" style={{ background: STATUS_COLOR[s] }} />
-                    {STATUS_LABEL[s]} <strong>{all.filter((t) => t.status === s).length}</strong>
+                    {STATUS_LABEL[s]} <strong>{all.filter((t) => stageOf(t.status) === s).length}</strong>
                   </span>
                 ))}
               </div>

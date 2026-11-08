@@ -416,6 +416,8 @@ Resolved
 Closed
 ```
 
+**As built (1.1):** people see three steps: Open, In progress, Resolved. The Admin's "resolve" action (FR-13) moves a ticket to Resolved and the progress line then shows every step as finished. `Closed` stays in the data model as an internal end state (for later archiving): no screen or action moves a ticket to it in 1.1, and a Closed ticket is displayed as Resolved. A Resolved ticket can be re-opened to In progress by the Admin.
+
 ### Escalation
 A ticket becomes eligible for escalation when:
 

@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { ApiError, NotReadyError } from '../api/client';
 import type { Priority, TicketStatus } from '../api/types';
-import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER } from '../lib/format';
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, stageOf } from '../lib/format';
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
   return <span className={`status status--${status}`}>{STATUS_LABEL[status]}</span>;
@@ -12,21 +12,29 @@ export function PriorityText({ priority }: { priority: Priority }) {
   return <span className={`priority priority--${priority}`}>{PRIORITY_LABEL[priority]}</span>;
 }
 
-/** Parcel-style progress line: Open → In progress → Resolved → Closed (PRD §14, v1.1). */
+/**
+ * Progress line: Open (blue) → In progress (amber) → Resolved (green).
+ * Each step keeps its own colour once reached; when the ticket is resolved (or closed) every step is ticked.
+ */
 export function StatusTrack({ status }: { status: TicketStatus }) {
-  const current = STATUS_ORDER.indexOf(status);
+  const shown = stageOf(status);
+  const current = STATUS_ORDER.indexOf(shown);
+  const finished = shown === 'resolved';
   return (
-    <ol className="track" aria-label={`สถานะปัจจุบัน: ${STATUS_LABEL[status]}`}>
-      {STATUS_ORDER.map((s, i) => (
-        <li
-          key={s}
-          data-step={i < current ? '✓' : String(i + 1)}
-          className={i < current ? 'is-done' : i === current ? 'is-current' : ''}
-          aria-current={i === current ? 'step' : undefined}
-        >
-          {STATUS_LABEL[s]}
-        </li>
-      ))}
+    <ol className="track" aria-label={`สถานะปัจจุบัน: ${STATUS_LABEL[shown]}`}>
+      {STATUS_ORDER.map((s, i) => {
+        const done = i < current || (finished && i === current);
+        return (
+          <li
+            key={s}
+            data-step={done ? '✓' : String(i + 1)}
+            className={`track__${s}${done ? ' is-done' : i === current ? ' is-current' : ''}`}
+            aria-current={i === current ? 'step' : undefined}
+          >
+            {STATUS_LABEL[s]}
+          </li>
+        );
+      })}
     </ol>
   );
 }

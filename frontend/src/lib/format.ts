@@ -6,7 +6,10 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
   resolved: 'แก้ไขแล้ว',
   closed: 'ปิดแล้ว',
 };
-export const STATUS_ORDER: TicketStatus[] = ['open', 'in_progress', 'resolved', 'closed'];
+/** The steps a person sees (PRD §14, v1.1). 'closed' is an internal end state: it is shown as the last step, finished. */
+export const STATUS_ORDER: TicketStatus[] = ['open', 'in_progress', 'resolved'];
+/** Which visible step a status belongs to. */
+export const stageOf = (s: TicketStatus): TicketStatus => (s === 'closed' ? 'resolved' : s);
 
 /** Old rows from Assignment 2 can still say 'assigned' (agent role is gone): treat as in progress. */
 export function normalizeStatus(value: string): TicketStatus {

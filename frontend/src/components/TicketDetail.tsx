@@ -1,8 +1,8 @@
 /**
  * Ticket detail — shared by My Tickets (requester) and the admin dashboard.
- * Follows the Use Case doc v1.1 (no chat):
- *   Requester: UC-04 follow status + repair progress · UC-05 edit while still open
- *   Admin:     ① UC-07 triage → ② UC-08 send to Team 10 → ③ UC-09 resolve
+ * Follows the Use Case doc v1.1:
+ *   Requester: UC-04 follow status + repair progress · UC-05 edit while still open · UC-13 chat (button "แชท")
+ *   Admin:     ① UC-07 triage → ② UC-08 send to Team 10 → ③ UC-09 resolve — in the centre column, under the problem
  */
 import { useState, type FormEvent } from 'react';
 import { api } from '../api/client';
@@ -45,7 +45,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
       </div>
 
       <div className="layout-ticket">
-        {/* Main: where the ticket is, what the problem is, repair progress, outcome */}
+        {/* Main: where the ticket is, what the problem is, repair progress, outcome — and, for the admin, the steps to take */}
         <div>
           <Panel>
             <StatusTrack status={t.status} />
@@ -84,6 +84,8 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
             )}
           </Panel>
 
+          {staff && <AdminActions ticket={t} onChanged={changed} />}
+
           {!staff && !closed && (
             <Panel title="ขั้นต่อไป" quiet>
               <p className="small">{nextStepForRequester(t)}</p>
@@ -91,7 +93,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
           )}
         </div>
 
-        {/* Side: properties, admin steps, history */}
+        {/* Side: properties and history */}
         <div>
           <Panel title="ข้อมูลคำร้อง">
             <dl className="meta">
@@ -107,8 +109,6 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
               <dd>{formatDateTime(t.updated_at)}</dd>
             </dl>
           </Panel>
-
-          {staff && <AdminActions ticket={t} onChanged={changed} />}
 
           <Panel title="ประวัติสถานะ">
             {t.history.length === 0 ? (
@@ -134,15 +134,15 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
   );
 }
 
-/** What the requester can expect next — there is no chat, so the page says it plainly. */
+/** What the requester can expect next. Questions go through the chat button. */
 function nextStepForRequester(t: Detail): string {
   if (t.maintenance_work_order_id) {
     return isRepairDone(t.maintenance_status)
-      ? 'ช่างซ่อมเสร็จแล้ว ผู้ดูแลจะตรวจผลและปิดคำร้อง คุณจะเห็นสรุปการแก้ไขในหน้านี้'
+      ? 'ช่างซ่อมเสร็จแล้ว ผู้ดูแลจะตรวจผลกับคุณ (ทางแชท) แล้วปิดคำร้อง คุณจะเห็นสรุปการแก้ไขในหน้านี้'
       : 'ผู้ดูแลส่งเรื่องให้ฝ่ายซ่อมบำรุงแล้ว สถานะงานซ่อมจะอัปเดตในหน้านี้อัตโนมัติ';
   }
-  if (t.status === 'open') return 'ผู้ดูแลจะคัดกรองคำร้องนี้ ระหว่างนี้คุณยังแก้หัวเรื่องและรายละเอียดได้';
-  return 'ผู้ดูแลกำลังดำเนินการ เมื่อแก้ไขเสร็จ คุณจะเห็นสรุปการแก้ไขในหน้านี้';
+  if (t.status === 'open') return 'ผู้ดูแลจะคัดกรองคำร้องนี้ ระหว่างนี้คุณยังแก้หัวเรื่องและรายละเอียดได้ ถ้ามีข้อสงสัยกดปุ่ม "แชท" เพื่อคุยกับผู้ดูแล';
+  return 'ผู้ดูแลกำลังดำเนินการ เมื่อแก้ไขเสร็จ คุณจะเห็นสรุปการแก้ไขในหน้านี้ ถ้ามีข้อสงสัยกดปุ่ม "แชท" ได้';
 }
 
 /* ---------------------------------------------------------------------------
@@ -298,17 +298,29 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const triaged = priority === ticket.priority && categoryId === ticket.category_id;
   const noteReady = note.trim().length >= 5;
 
+  // Where the admin is: ① until the work starts, ② only for repairs, ③ once work is under way.
+  const started = ticket.status !== 'open';
+  const s1: StepState = started ? 'done' : 'current';
+  const s2: StepState = linked ? 'done' : ticket.ai_route === 'maintenance' ? 'current' : 'optional';
+  const s3: StepState = started ? 'current' : 'todo';
+
   return (
     <Panel title="การดำเนินการ">
+      <p className="small muted">ทำตามลำดับ 1 → 2 → 3 ขั้นที่ 2 ทำเฉพาะงานซ่อม ถ้าไม่ใช่งานซ่อมข้ามไปขั้นที่ 3 ได้เลย</p>
+
       <div aria-live="polite">
-        {result?.ok && <Notice tone="ok" title={result.text} />}
-        {result && !result.ok && <ErrorNotice error={result.error} />}
+        {result?.ok && <div className="mt-3"><Notice tone="ok" title={result.text} /></div>}
+        {result && !result.ok && <div className="mt-3"><ErrorNotice error={result.error} /></div>}
       </div>
 
-      <ol className={`actions-grid${result ? ' mt-4' : ''}`}>
+      <ol className="actions-grid mt-4">
         {/* ① Triage */}
-        <li className="action">
-          <h3 className="step-title"><span className="step-num" aria-hidden="true">1</span>คัดกรอง</h3>
+        <li className={`action action--${s1}`}>
+          <StepTitle n={1} state={s1} label="คัดกรอง" stateLabel={s1 === 'done' ? 'เริ่มดำเนินการแล้ว' : 'ทำขั้นนี้'} />
+          <p className="step-desc">
+            ตรวจหมวดหมู่และความเร่งด่วนที่ผู้แจ้งเลือก (ดูคำแนะนำของระบบด้านบน) ปรับให้ถูกต้อง แล้วกด "เริ่มดำเนินการ"
+            หลังจากนั้นผู้แจ้งจะแก้คำร้องไม่ได้อีก
+          </p>
           {categoriesError ? <ErrorNotice error={categoriesError} /> : null}
           <div className="inline">
             <label className="visually-hidden" htmlFor="triage-priority">ความเร่งด่วน</label>
@@ -345,11 +357,17 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
         </li>
 
         {/* ② Send to Team 10 — only for repairs */}
-        <li className="action">
-          <h3 className="step-title">
-            <span className="step-num" aria-hidden="true">2</span>ส่งต่อฝ่ายซ่อมบำรุง
-            <span className="muted small"> (เฉพาะงานซ่อม)</span>
-          </h3>
+        <li className={`action action--${s2}`}>
+          <StepTitle
+            n={2}
+            state={s2}
+            label="ส่งต่อฝ่ายซ่อมบำรุง"
+            stateLabel={s2 === 'done' ? 'ผูกใบงานแล้ว' : s2 === 'current' ? 'ระบบแนะนำให้ทำ' : 'เฉพาะงานซ่อม'}
+          />
+          <p className="step-desc">
+            ใช้เมื่อเป็นงานซ่อมเท่านั้น แจ้งซ่อมในระบบของ Team 10 ก่อน แล้วนำเลขใบงานมาผูกที่นี่
+            หลังผูก สถานะงานซ่อมจะอัปเดตเองและผู้แจ้งเห็นในคำร้อง
+          </p>
           {linked ? (
             <p className="small">
               ผูกกับใบงาน <strong>{ticket.maintenance_work_order_id}</strong> แล้ว
@@ -388,8 +406,12 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
         </li>
 
         {/* ③ Resolve — summary required, then confirm */}
-        <li className="action">
-          <h3 className="step-title"><span className="step-num" aria-hidden="true">3</span>ปิดงาน</h3>
+        <li className={`action action--${s3}`}>
+          <StepTitle n={3} state={s3} label="ปิดงาน" stateLabel={s3 === 'todo' ? 'ทำหลังเริ่มดำเนินการ' : 'ทำขั้นนี้'} />
+          <p className="step-desc">
+            เมื่อปัญหาหายแล้ว (ถ้าเป็นงานซ่อม ให้ถามผู้แจ้งทางแชทก่อน) เขียนสรุปให้ผู้แจ้งเห็น แล้วยืนยัน
+            คำร้องจะเป็น "แก้ไขแล้ว" ระบบไม่ปิดให้เอง แม้ Team 10 แจ้งว่าซ่อมเสร็จ
+          </p>
           {linked && (repairDone ? (
             <Notice tone="ok" title="ซ่อมเสร็จแล้ว พร้อมปิดงาน" />
           ) : (
@@ -428,5 +450,18 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
         </li>
       </ol>
     </Panel>
+  );
+}
+
+/** done = finished · current = what to do now · optional = only sometimes (repairs) · todo = comes later */
+type StepState = 'done' | 'current' | 'optional' | 'todo';
+
+function StepTitle({ n, state, label, stateLabel }: { n: number; state: StepState; label: string; stateLabel: string }) {
+  return (
+    <h3 className="step-title">
+      <span className={`step-num step-num--${state}`} aria-hidden="true">{state === 'done' ? '✓' : n}</span>
+      {label}
+      <span className={`step-state step-state--${state}`}>{stateLabel}</span>
+    </h3>
   );
 }

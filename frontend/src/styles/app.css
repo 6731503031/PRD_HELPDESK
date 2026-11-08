@@ -19,10 +19,14 @@
   --line-soft: #edf0f5;
 
   /* Status */
-  --st-open: #4a5566;
+  --st-open: #1f55b3;        /* text colours (dark enough on white) */
   --st-progress: #9a6200;
   --st-resolved: #2f7a45;
   --st-closed: #6b7280;
+  --fill-open: #2f6fd8;      /* fills: progress line, dashboard bar (blue → amber → green) */
+  --fill-progress: #dc8a00;
+  --fill-resolved: #2e9e5b;
+  --fill-closed: #8b95a5;
   --urgent: #c0352b;
   --high: #9a6200;
 
@@ -321,7 +325,10 @@ fieldset { border: 0; margin: 0; padding: 0; }
 /* --------------------------------------------------------------------------
    Status track: a parcel-style progress line
    -------------------------------------------------------------------------- */
-.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.track__open { --c: var(--fill-open); }
+.track__in_progress { --c: var(--fill-progress); --from: var(--fill-open); }
+.track__resolved { --c: var(--fill-resolved); --from: var(--fill-progress); }
 .track li {
   position: relative; text-align: center; padding: 30px 2px 0;
   font-size: 0.8rem; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere;
@@ -337,11 +344,15 @@ fieldset { border: 0; margin: 0; padding: 0; }
   height: 2px; background: var(--line);
 }
 .track li:first-child::after { display: none; }
-.track li.is-done { color: var(--text); }
-.track li.is-done::before { background: var(--brand); border-color: var(--brand); color: #fff; }
-.track li.is-done::after, .track li.is-current::after { background: var(--brand); }
-.track li.is-current { color: var(--brand-dark); font-weight: 600; }
-.track li.is-current::before { background: #fff; border-color: var(--brand); color: var(--brand); box-shadow: 0 0 0 4px var(--brand-tint); }
+.track li.is-done { color: var(--text); font-weight: 500; }
+.track li.is-done::before { background: var(--c); border-color: var(--c); color: #fff; }
+.track li.is-done::after, .track li.is-current::after { background: linear-gradient(90deg, var(--from, var(--c)), var(--c)); }
+.track li.is-current { color: var(--c); font-weight: 600; }
+.track li.is-current::before {
+  background: #fff; border-color: var(--c); color: var(--c);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 20%, transparent);
+}
+.track li.track__resolved.is-done { color: var(--st-resolved); font-weight: 600; }
 
 /* --------------------------------------------------------------------------
    Detail blocks
@@ -383,7 +394,7 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: end; margin-bottom: var(--s4); }
 .filters .field { min-width: 160px; }
 
-.actions-grid { display: grid; gap: var(--s5); list-style: none; margin: 0; padding: 0; }
+.actions-grid { display: grid; gap: var(--s4); list-style: none; margin: 0; padding: 0; }
 .action { display: grid; gap: var(--s2); padding-top: var(--s4); border-top: 1px solid var(--line-soft); }
 .action:first-child { border-top: 0; padding-top: 0; }
 .inline { display: flex; gap: var(--s2); flex-wrap: wrap; }
@@ -415,6 +426,20 @@ fieldset { border: 0; margin: 0; padding: 0; }
   display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
   background: var(--brand); color: #fff; font: 600 0.75rem/1 var(--sans);
 }
+.step-desc { color: var(--muted); font-size: 0.88rem; max-width: 70ch; }
+.step-num--done { background: var(--fill-resolved); }
+.step-num--todo { background: #fff; color: var(--muted); border: 1.5px solid var(--line); }
+.step-num--optional { background: #fff; color: var(--brand); border: 1.5px solid var(--brand); }
+.step-state {
+  margin-left: auto; font: 500 0.75rem/1.5 var(--sans); padding: 0 var(--s2); border-radius: 999px;
+  background: var(--subtle); color: var(--muted); border: 1px solid var(--line-soft);
+}
+.step-state--current { background: var(--brand-tint); color: var(--brand-dark); border-color: #d5e1f3; }
+.step-state--done { background: var(--ok-bg); color: var(--st-resolved); border-color: #cfe7d6; }
+.action--current {
+  background: var(--subtle); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s4);
+}
+.action--current:first-child { padding-top: var(--s4); }
 .substeps { margin: 0; padding-left: 1.3em; display: grid; gap: var(--s3); }
 .substeps li::marker { color: var(--brand); font-weight: 600; }
 .copy-ref { display: inline-flex; align-items: center; gap: var(--s1); margin-left: var(--s1); }
