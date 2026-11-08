@@ -74,6 +74,8 @@ npm run dev                   # http://127.0.0.1:8787  (หน้าเว็บ
 | `npm run mock:maintenance -- WO-0045 in_progress` | จำลอง Team 10 ส่ง webhook |
 | `npm run db:remote:migrate` | เพิ่มตารางใหม่บน production (ครั้งเดียว) |
 | `npm run deploy` | build + deploy |
+| `npm run wt:new -- p2/events` | เริ่มงานใหม่ใน git worktree ของตัวเอง (ดู docs/TEAM_GUIDE.md ข้อ 4) |
+| `npm run wt:list` / `wt:open` / `wt:rm` | ดู / เปิดงานเพื่อนมา review / ลบ worktree |
 
 เปิดเว็บแล้วจะเจอหน้าเข้าสู่ระบบ (เลือกบัญชีทดสอบ) หรือข้ามด้วย `?as=<id>` เช่น http://127.0.0.1:8787/?as=3#/queue
 

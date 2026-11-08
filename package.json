@@ -15,7 +15,11 @@
     "db:local:fresh": "wrangler d1 execute helpdesk-db --local --file=./database/schema.sql",
     "db:local:migrate": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0002_final_features.sql",
     "db:remote:migrate": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0002_final_features.sql",
-    "mock:maintenance": "node scripts/send-mock-maintenance-event.mjs"
+    "mock:maintenance": "node scripts/send-mock-maintenance-event.mjs",
+    "wt:new": "bash scripts/worktree.sh new",
+    "wt:open": "bash scripts/worktree.sh open",
+    "wt:list": "bash scripts/worktree.sh list",
+    "wt:rm": "bash scripts/worktree.sh rm"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240605.0",

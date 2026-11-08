@@ -104,7 +104,7 @@ bash scripts/smoke.sh  # ทดสอบ API ทั้งระบบ (ต้อ
 
 ### กฎ 5 ข้อ
 1. **ห้าม push ขึ้น `main` ตรง ๆ** ทุกอย่างผ่าน Pull Request (PR)
-2. **1 branch ต่อ 1 งาน** ชื่อ `<คน>/<งาน>` เช่น `p2/comments`, `p3/webhook`, `p4/ai-fallback`
+2. **1 งาน = 1 branch = 1 worktree** ชื่อ branch `<คน>/<งาน>` เช่น `p2/events`, `p3/webhook`, `p4/ai-fallback` (สร้างด้วย `npm run wt:new`)
 3. **commit เล็ก ๆ บ่อย ๆ** ข้อความขึ้นต้นด้วยประเภท: `feat(comments): add internal visibility rule`
    ประเภท: `feat` ฟีเจอร์ใหม่ · `fix` แก้บั๊ก · `test` เพิ่ม test · `docs` เอกสาร · `refactor` จัดโค้ด
 4. **PR ต้องผ่าน CI (เครื่องหมายถูกสีเขียว) + เพื่อน 1 คน approve** ก่อน merge
@@ -119,23 +119,46 @@ bash scripts/smoke.sh  # ทดสอบ API ทั้งระบบ (ต้อ
 | P4 | P3 |
 | แตะไฟล์ส่วนกลาง | + P1 |
 
+### git worktree (อาจารย์กำหนด: ทุกคนใช้)
+**1 งาน = 1 branch = 1 โฟลเดอร์ worktree** โฟลเดอร์ clone หลักอยู่บน `main` ตลอด ใช้แค่ pull และ review ส่วนงานแต่ละชิ้นทำในโฟลเดอร์ worktree ของตัวเอง ทุกโฟลเดอร์ใช้ repo เดียวกัน แต่ละโฟลเดอร์อยู่คนละ branch จึงทำหลายงานพร้อมกันได้โดยไม่ต้อง `git switch` หรือ stash
+
+```
+PRD_HELPDESK/                       ← clone หลัก อยู่บน main (pull, review, merge)
+PRD_HELPDESK.worktrees/
+  ├── p2-events/                    ← branch p2/events
+  ├── p2-chat-unread/               ← branch p2/chat-unread (ทำคู่ขนานได้)
+  └── review-p3-webhook/            ← เปิดงานเพื่อนมารัน review
+```
+
+| ทำอะไร | คำสั่ง (รันในโฟลเดอร์ไหนก็ได้ของ repo) |
+|---|---|
+| เริ่มงานใหม่ | `npm run wt:new -- p2/events` (สร้าง branch จาก `origin/main` + โฟลเดอร์ + `npm ci` + DB บนเครื่อง) |
+| เปิดงานเพื่อนมา review | `npm run wt:open -- origin/p3/webhook` |
+| ดูว่าเปิดอะไรอยู่บ้าง | `npm run wt:list` (= `git worktree list`) |
+| ทำเสร็จแล้ว ลบโฟลเดอร์ | `npm run wt:rm -- p2/events` (branch ยังอยู่) |
+
+รัน 2 โฟลเดอร์พร้อมกันต้องใช้คนละ port: โฟลเดอร์หลัก `npm run dev` (8787) ส่วน worktree ใช้ `npm run dev -- --port 8788`
+**หลักฐานส่งอาจารย์:** screenshot `git worktree list` ตอนทำงาน + PR ที่มาจาก branch ของ worktree
+
 ### ทำงานทีละรอบ (copy ได้เลย)
 ```bash
-git switch main
-git pull                                 # เอาของล่าสุดก่อนเริ่มทุกครั้ง
-git switch -c p2/comments                # branch ใหม่ของงานนี้
+npm run wt:new -- p2/events              # ครั้งแรกของงานนี้ (ในโฟลเดอร์หลัก)
+cd ../PRD_HELPDESK.worktrees/p2-events   # ทำงานในโฟลเดอร์นี้
 
 # ... เขียนโค้ด ...
 npm test && npm run typecheck            # ต้องผ่านก่อน commit
-git add backend/src/modules/comments backend/test/comments.test.ts
-git commit -m "feat(comments): implement visibility rules (F12)"
-git push -u origin p2/comments
+git add backend/src/modules/events backend/test/escalation.test.ts
+git commit -m "feat(events): store domain events in outbox (F15)"
+git push -u origin p2/events
 ```
 แล้วเปิด GitHub → **Compare & pull request** → เขียนว่าทำอะไร, ฟีเจอร์ F อะไร, ทดสอบยังไง → ขอ review จากคู่
+merge แล้ว: `npm run wt:rm -- p2/events` แล้วกลับโฟลเดอร์หลัก `git pull`
+
+**คนที่ review (P1 และคู่ review):** ไม่ต้องทิ้งงานตัวเอง ใช้ `npm run wt:open -- origin/p2/events` → `npm test && bash scripts/smoke.sh` → approve บน GitHub → `npm run wt:rm -- origin/p2/events`
 
 ### ระหว่างรอ review แล้ว main มีของใหม่
 ```bash
-git switch p2/comments
+cd ../PRD_HELPDESK.worktrees/p2-events   # อยู่ใน worktree ของงานนั้น
 git pull origin main          # ดึงของใหม่มารวม
 # ถ้ามี conflict: เปิดไฟล์ แก้ส่วนที่มี <<<<<<< ======= >>>>>>> แล้ว
 git add <ไฟล์> && git commit
