@@ -48,7 +48,8 @@ export type Comment = {
   id: number;
   author_id: number;
   author_name: string | null;
-  author_role: Role | null;
+  /** 'system' = automatic message (start, sent to Team 10, repair progress, resolved), shown as a grey line */
+  author_role: Role | 'system' | null;
   content: string;
   created_at: string;
 };

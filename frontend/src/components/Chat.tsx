@@ -14,9 +14,11 @@ import { ErrorNotice, Loading } from './ui';
 
 type Row = { c: Comment; mine: boolean; first: boolean; last: boolean; day: string | null };
 
-/** Group neighbours: same author, same day, within 5 minutes. */
+/** Group neighbours: same author, same day, within 5 minutes. Automatic messages never join a burst. */
 function arrange(list: Comment[], myId: number | undefined): Row[] {
-  const together = (a: Comment, b: Comment) => a.author_id === b.author_id && sameDay(a.created_at, b.created_at) && closeInTime(a.created_at, b.created_at);
+  const together = (a: Comment, b: Comment) =>
+    a.author_role !== 'system' && b.author_role !== 'system' &&
+    a.author_id === b.author_id && sameDay(a.created_at, b.created_at) && closeInTime(a.created_at, b.created_at);
   return list.map((c, i) => {
     const prev = list[i - 1];
     const next = list[i + 1];
@@ -94,6 +96,14 @@ export function Chat({ ticketId }: { ticketId: number }) {
           rows.map(({ c, mine, first, last, day }) => (
             <div key={c.id} className="burst">
               {day && <div className="day">{day}</div>}
+              {c.author_role === 'system' ? (
+                // Automatic message (start, sent to Team 10, repair progress, resolved): a grey line in the middle
+                <p className="sysmsg" title={formatDateTime(c.created_at)}>
+                  <Icon name="wrench" size={14} />
+                  <span>{c.content}</span>
+                  <time>{formatTime(c.created_at)}</time>
+                </p>
+              ) : (
               <div className={`mx ${mine ? 'mx--mine' : 'mx--them'} ${first && last ? 'is-single' : first ? 'is-first' : last ? 'is-last' : 'is-mid'}`}>
                 {!mine && <span className="mx__av">{last && <Avatar name={c.author_name} size={28} />}</span>}
                 <div className="mx__col">
@@ -101,6 +111,7 @@ export function Chat({ ticketId }: { ticketId: number }) {
                   {last && <span className="mx__time">{formatTime(c.created_at)}</span>}
                 </div>
               </div>
+              )}
             </div>
           ))
         )}
