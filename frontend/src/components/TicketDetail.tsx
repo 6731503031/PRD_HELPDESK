@@ -33,12 +33,12 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
     <>
       <div className="pagebar">
         <div>
-          <p className="muted small">คำร้องเลขที่ <strong>{t.ticket_number}</strong></p>
+          <p className="muted small">Ticket <strong>{t.ticket_number}</strong></p>
           <h1>{t.title}</h1>
         </div>
         <div className="pagebar__actions">
           <a className="btn btn--secondary btn--small" href={`#/chat/${t.id}`}>
-            <Icon name="chat" size={16} /> แชท
+            <Icon name="chat" size={16} /> Chat
           </a>
           <PriorityText priority={t.priority} />
           <StatusBadge status={t.status} />
@@ -55,7 +55,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
               <RequesterEdit ticket={t} onSaved={changed} />
             ) : (
               <>
-                <h3 className="mt-5">รายละเอียดปัญหา</h3>
+                <h3 className="mt-5">Problem details</h3>
                 <p className="description mt-2">{t.description}</p>
               </>
             )}
@@ -66,11 +66,11 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
               <div className="mt-5">
                 <Notice
                   tone={isRepairDone(t.maintenance_status) ? 'ok' : 'info'}
-                  title={`ส่งต่อฝ่ายซ่อมบำรุงแล้ว ใบงาน ${t.maintenance_work_order_id}`}
+                  title={`Sent to Maintenance, work order ${t.maintenance_work_order_id}`}
                 >
                   <p>
-                    สถานะงานซ่อม: <strong>{maintenanceLabel(t.maintenance_status)}</strong>
-                    {t.maintenance_status_at && <span className="muted"> (อัปเดต {formatDateTime(t.maintenance_status_at)})</span>}
+                    Repair status: <strong>{maintenanceLabel(t.maintenance_status)}</strong>
+                    {t.maintenance_status_at && <span className="muted"> (updated {formatDateTime(t.maintenance_status_at)})</span>}
                   </p>
                 </Notice>
               </div>
@@ -78,7 +78,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
 
             {closed && (
               <div className="mt-5">
-                <Notice tone="ok" title={`แก้ไขแล้วเมื่อ ${formatDateTime(t.resolved_at)}`}>
+                <Notice tone="ok" title={`Resolved on ${formatDateTime(t.resolved_at)}`}>
                   {t.resolution_note && <p>{t.resolution_note}</p>}
                 </Notice>
               </div>
@@ -88,7 +88,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
           {staff && <AdminActions ticket={t} onChanged={changed} />}
 
           {!staff && !closed && (
-            <Panel title="ขั้นต่อไป" quiet>
+            <Panel title="What happens next" quiet>
               <p className="small">{nextStepForRequester(t)}</p>
             </Panel>
           )}
@@ -96,24 +96,24 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
 
         {/* Side: properties and history */}
         <div>
-          <Panel title="ข้อมูลคำร้อง">
+          <Panel title="Ticket information">
             <dl className="meta">
-              <dt>หมวดหมู่</dt>
+              <dt>Category</dt>
               <dd><span className="chip">{t.category_name ?? '–'}</span></dd>
-              <dt>ความเร่งด่วน</dt>
+              <dt>Urgency</dt>
               <dd><PriorityText priority={t.priority} /></dd>
-              <dt>ผู้แจ้ง</dt>
+              <dt>Requester</dt>
               <dd className="person"><Avatar name={t.customer_name} size={22} /> {t.customer_name ?? `#${t.customer_id}`}</dd>
-              <dt>แจ้งเมื่อ</dt>
+              <dt>Reported</dt>
               <dd>{formatDateTime(t.created_at)}</dd>
-              <dt>อัปเดตล่าสุด</dt>
+              <dt>Last updated</dt>
               <dd>{formatDateTime(t.updated_at)}</dd>
             </dl>
           </Panel>
 
-          <Panel title="ประวัติสถานะ">
+          <Panel title="Status history">
             {t.history.length === 0 ? (
-              <p className="muted">ยังไม่มีการเปลี่ยนสถานะ</p>
+              <p className="muted">No status changes yet.</p>
             ) : (
               <ol className="history">
                 {t.history.map((h, i) => (
@@ -122,7 +122,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
                     {h.note && <span> — {h.note}</span>}
                     <time>
                       {formatDateTime(h.created_at)}
-                      {h.source === 'maintenance' ? ' โดยฝ่ายซ่อมบำรุง' : h.changed_by_name ? ` โดย ${h.changed_by_name}` : ''}
+                      {h.source === 'maintenance' ? ' by Maintenance' : h.changed_by_name ? ` by ${h.changed_by_name}` : ''}
                     </time>
                   </li>
                 ))}
@@ -139,11 +139,11 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
 function nextStepForRequester(t: Detail): string {
   if (t.maintenance_work_order_id) {
     return isRepairDone(t.maintenance_status)
-      ? 'ช่างซ่อมเสร็จแล้ว ผู้ดูแลจะตรวจผลกับคุณ (ทางแชท) แล้วปิดคำร้อง คุณจะเห็นสรุปการแก้ไขในหน้านี้'
-      : 'ผู้ดูแลส่งเรื่องให้ฝ่ายซ่อมบำรุงแล้ว สถานะงานซ่อมจะอัปเดตในหน้านี้อัตโนมัติ';
+      ? 'The repair is done. The Helpdesk team will check the result with you in the chat, then resolve the ticket. The summary will appear on this page.'
+      : 'Your ticket has been sent to Maintenance. The repair status updates on this page automatically.';
   }
-  if (t.status === 'open') return 'ผู้ดูแลจะคัดกรองคำร้องนี้ ระหว่างนี้คุณยังแก้หัวเรื่องและรายละเอียดได้ ถ้ามีข้อสงสัยกดปุ่ม "แชท" เพื่อคุยกับผู้ดูแล';
-  return 'ผู้ดูแลกำลังดำเนินการ เมื่อแก้ไขเสร็จ คุณจะเห็นสรุปการแก้ไขในหน้านี้ ถ้ามีข้อสงสัยกดปุ่ม "แชท" ได้';
+  if (t.status === 'open') return 'The Helpdesk team will review this ticket. Until then you can still edit the subject and description. Questions? Use the "Chat" button.';
+  return 'The Helpdesk team is working on it. When it is resolved, the summary will appear on this page. Questions? Use the "Chat" button.';
 }
 
 /* ---------------------------------------------------------------------------
@@ -185,8 +185,8 @@ function RequesterEdit({ ticket, onSaved }: { ticket: Detail; onSaved: () => voi
     return (
       <>
         <div className="section-head mt-5">
-          <h3>รายละเอียดปัญหา</h3>
-          <button className="btn btn--secondary btn--small" onClick={() => setEditing(true)}>แก้ไขคำร้อง</button>
+          <h3>Problem details</h3>
+          <button className="btn btn--secondary btn--small" onClick={() => setEditing(true)}>Edit ticket</button>
         </div>
         <p className="description mt-2">{ticket.description}</p>
       </>
@@ -195,20 +195,20 @@ function RequesterEdit({ ticket, onSaved }: { ticket: Detail; onSaved: () => voi
 
   return (
     <form className="form mt-5" onSubmit={save}>
-      <h3>แก้ไขคำร้อง</h3>
-      <p className="muted small">แก้ได้จนกว่าผู้ดูแลจะเริ่มดำเนินการ หมวดหมู่และความเร่งด่วนผู้ดูแลเป็นคนปรับ</p>
-      <Field id="edit-title" label="หัวเรื่อง" required>
+      <h3>Edit ticket</h3>
+      <p className="muted small">You can edit until the Helpdesk team starts work. Category and urgency are set by the Helpdesk team.</p>
+      <Field id="edit-title" label="Subject" required>
         <input id="edit-title" className="input" value={title} maxLength={150} onChange={(e) => setTitle(e.target.value)} />
       </Field>
-      <Field id="edit-description" label="รายละเอียด" required>
+      <Field id="edit-description" label="Description" required>
         <textarea id="edit-description" className="textarea" value={description} maxLength={5000} onChange={(e) => setDescription(e.target.value)} />
       </Field>
       {error ? <ErrorNotice error={error} /> : null}
       <div className="form-actions">
         <button className="btn" type="submit" disabled={saving || unchanged || tooShort}>
-          {saving ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
-        <button className="btn btn--plain" type="button" onClick={cancel} disabled={saving}>ยกเลิก</button>
+        <button className="btn btn--plain" type="button" onClick={cancel} disabled={saving}>Cancel</button>
       </div>
     </form>
   );
@@ -219,7 +219,7 @@ function RequesterEdit({ ticket, onSaved }: { ticket: Detail; onSaved: () => voi
    --------------------------------------------------------------------------- */
 function SystemSuggestion({ ticket: t }: { ticket: Detail }) {
   if (!t.ai_source || !t.ai_route) {
-    return <p className="muted small mt-5">ยังไม่มีคำแนะนำจากระบบสำหรับคำร้องนี้</p>;
+    return <p className="muted small mt-5">No system suggestion for this ticket yet.</p>;
   }
   const categoryDiffers = t.ai_category_id != null && t.ai_category_id !== t.category_id;
   const priorityDiffers = t.ai_priority != null && t.ai_priority !== t.priority;
@@ -227,18 +227,18 @@ function SystemSuggestion({ ticket: t }: { ticket: Detail }) {
 
   return (
     <div className="mt-5">
-      <Notice tone={categoryDiffers || priorityDiffers || needsWorkOrder ? 'warn' : 'info'} title={`ระบบแนะนำ: ${ROUTE_LABEL[t.ai_route] ?? t.ai_route}`}>
+      <Notice tone={categoryDiffers || priorityDiffers || needsWorkOrder ? 'warn' : 'info'} title={`Suggested: ${ROUTE_LABEL[t.ai_route] ?? t.ai_route}`}>
         <p className="small">
-          หมวด {t.ai_category_name ?? '–'}, ความเร่งด่วน {t.ai_priority ? PRIORITY_LABEL[t.ai_priority] : '–'}
-          <span className="muted"> ({t.ai_source === 'ai' ? 'แนะนำโดย AI' : 'แนะนำตามกฎของระบบ'})</span>
+          Category {t.ai_category_name ?? '–'}, urgency {t.ai_priority ? PRIORITY_LABEL[t.ai_priority] : '–'}
+          <span className="muted"> ({t.ai_source === 'ai' ? 'suggested by AI' : 'suggested by system rules'})</span>
         </p>
         {(categoryDiffers || priorityDiffers) && (
           <p className="small">
-            ผู้แจ้งเลือก{categoryDiffers ? ` หมวด ${t.category_name ?? '–'}` : ''}
-            {priorityDiffers ? ` ความเร่งด่วน ${PRIORITY_LABEL[t.priority]}` : ''} ซึ่งต่างจากที่ระบบแนะนำ ตรวจสอบก่อนบันทึกการคัดกรอง
+            The requester chose{categoryDiffers ? ` category ${t.category_name ?? '–'}` : ''}
+            {priorityDiffers ? ` urgency ${PRIORITY_LABEL[t.priority]}` : ''}, which differs from the suggestion. Check before saving the triage.
           </p>
         )}
-        {needsWorkOrder && <p className="small">เป็นงานซ่อม: ทำขั้น ② ส่งต่อฝ่ายซ่อมบำรุง</p>}
+        {needsWorkOrder && <p className="small">This is a repair: send it to Maintenance (step 2).</p>}
       </Notice>
     </div>
   );
@@ -320,7 +320,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
     ? settings.maintenance_portal_url.replace('{ticketRef}', encodeURIComponent(ticket.ticket_number))
     : null;
   const woText = workOrder.trim();
-  const woProblem = /^tkt-/i.test(woText) ? 'นี่คือเลขคำร้องของเรา ให้วางเลขใบงานที่ Team 10 ออกให้' : null;
+  const woProblem = /^tkt-/i.test(woText) ? 'This is our own ticket number. Paste the work order number issued by Team 10.' : null;
   const repairReady = repairTitle.trim().length >= 3 && repairDescription.trim().length >= 5 && repairLocation.trim().length >= 2;
   const repairPayload = () => ({
     title: repairTitle.trim(),
@@ -332,13 +332,13 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const repairFields = (
     <>
       <p className="small">
-        เลขอ้างอิง <code>{ticket.ticket_number}</code>
+        Reference <code>{ticket.ticket_number}</code>
       </p>
-      <Field id="repair-title" label="หัวเรื่องงานซ่อม" required>
+      <Field id="repair-title" label="Repair title" required>
         <input id="repair-title" className="input" value={repairTitle} maxLength={150} onChange={(e) => setRepairTitle(e.target.value)} />
       </Field>
       <div className="grid-2">
-        <Field id="repair-category" label="ประเภทงานซ่อม" required hint="ระบบเดาจากข้อความในคำร้อง เปลี่ยนได้">
+        <Field id="repair-category" label="Repair category" required hint="Guessed from the ticket text; you can change it">
           <select id="repair-category" className="select" value={repairCategory} onChange={(e) => setRepairCategory(e.target.value as RepairCategory)}>
             {REPAIR_CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -347,18 +347,18 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
             ))}
           </select>
         </Field>
-        <Field id="repair-location" label="สถานที่" required hint="ให้ช่างหาเจอ เช่น อาคาร B ห้อง B-204">
+        <Field id="repair-location" label="Location" required hint="So the technician can find it, e.g. Building B, Room B-204">
           <input
             id="repair-location"
             className="input"
             value={repairLocation}
             maxLength={200}
-            placeholder="เช่น อาคาร B ห้อง B-204"
+            placeholder="e.g. Building B, Room B-204"
             onChange={(e) => setRepairLocation(e.target.value)}
           />
         </Field>
       </div>
-      <Field id="repair-description" label="รายละเอียด" required hint="ลบชื่อ อีเมล หรือเบอร์โทรออก Team 10 ได้รับแค่ข้อความในกล่องนี้กับเลขอ้างอิง">
+      <Field id="repair-description" label="Description" required hint="Remove any names, emails or phone numbers. Team 10 only receives the text in this box and the reference.">
         <textarea
           id="repair-description"
           className="textarea textarea--short"
@@ -386,16 +386,16 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
       return;
     }
     if (!sendNow) {
-      setResult({ ok: true, text: 'เริ่มดำเนินการแล้ว ผู้แจ้งจะแก้คำร้องไม่ได้อีก' });
+      setResult({ ok: true, text: 'Work started. The requester can no longer edit the ticket.' });
     } else {
       try {
         await api.sendWorkOrder(ticket.id, repairPayload());
-        setResult({ ok: true, text: 'เริ่มดำเนินการ และส่งให้ Team 10 แล้ว ระบบผูกใบงานกับคำร้องนี้ให้แล้ว' });
+        setResult({ ok: true, text: 'Work started and sent to Team 10. The work order has been linked to this ticket.' });
       } catch (err) {
         setResult({
           ok: true,
-          text: 'เริ่มดำเนินการแล้ว',
-          warn: `แต่ส่งให้ Team 10 ไม่สำเร็จ: ${err instanceof Error ? err.message : 'เกิดข้อผิดพลาด'} ส่งใหม่ได้ที่ขั้นที่ 2`,
+          text: 'Work started',
+          warn: `but it could not be sent to Team 10: ${err instanceof Error ? err.message : 'something went wrong'} You can send it again in step 2.`,
         });
       }
     }
@@ -405,11 +405,11 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const s3: StepState = started ? 'current' : 'todo';
 
   return (
-    <Panel title="การดำเนินการ">
+    <Panel title="Actions">
       <p className="small muted">
         {showStep2
-          ? 'งานซ่อม (หมวด Facility): ขั้นที่ 1 กด "เริ่มดำเนินการ และส่งให้ Team 10" ขั้นที่ 2 ดูผลการส่ง ขั้นที่ 3 ปิดงานเมื่อซ่อมเสร็จ'
-          : 'ไม่ใช่งานซ่อม แอดมินแก้เอง: ขั้นที่ 1 เริ่มดำเนินการ แล้วปิดงานในขั้นที่ 3 (ถ้าเป็นงานซ่อม เปลี่ยนหมวดเป็น Facility)'}
+          ? 'Repair (Facility): step 1, press "Start work and send to Team 10"; step 2, check the result; step 3, resolve once the repair is done.'
+          : 'Not a repair, handled by the admin: step 1, start work; step 3, resolve. (For a repair, change the category to Facility.)'}
       </p>
 
       <div aria-live="polite">
@@ -427,23 +427,23 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
       <ol className="actions-grid mt-4">
         {/* ① Triage */}
         <li className={`action action--${s1}`}>
-          <StepTitle n={1} state={s1} label="คัดกรอง" stateLabel={s1 === 'done' ? 'เริ่มดำเนินการแล้ว' : 'ทำขั้นนี้'} />
+          <StepTitle n={1} state={s1} label="Triage" stateLabel={s1 === 'done' ? 'Work started' : 'To do'} />
           <p className="step-desc">
-            ตรวจหมวดหมู่และความเร่งด่วนที่ผู้แจ้งเลือก (ดูคำแนะนำของระบบด้านบน) ปรับให้ถูกต้อง แล้วกด "เริ่มดำเนินการ"
-            หลังจากนั้นผู้แจ้งจะแก้คำร้องไม่ได้อีก
+            Check the category and urgency chosen by the requester (see the suggestion above), correct them if needed, then press "Start work".
+            After that the requester can no longer edit the ticket.
           </p>
           {categoriesError ? <ErrorNotice error={categoriesError} /> : null}
           <div className="inline">
-            <label className="visually-hidden" htmlFor="triage-priority">ความเร่งด่วน</label>
+            <label className="visually-hidden" htmlFor="triage-priority">Urgency</label>
             <select id="triage-priority" className="select" value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
               {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
-                <option key={p} value={p}>ความเร่งด่วน: {PRIORITY_LABEL[p]}</option>
+                <option key={p} value={p}>Urgency: {PRIORITY_LABEL[p]}</option>
               ))}
             </select>
-            <label className="visually-hidden" htmlFor="triage-category">หมวดหมู่</label>
+            <label className="visually-hidden" htmlFor="triage-category">Category</label>
             <select id="triage-category" className="select" value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value))}>
               {categories?.map((c: Category) => (
-                <option key={c.id} value={c.id}>หมวด: {c.name}</option>
+                <option key={c.id} value={c.id}>Category: {c.name}</option>
               ))}
             </select>
           </div>
@@ -451,13 +451,13 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
             <button
               className="btn btn--secondary"
               disabled={!!busy || triaged}
-              onClick={() => run('triage', () => api.updateTicket(ticket.id, { priority, category_id: categoryId }), 'บันทึกการคัดกรองแล้ว')}
+              onClick={() => run('triage', () => api.updateTicket(ticket.id, { priority, category_id: categoryId }), 'Triage saved')}
             >
-              บันทึกการคัดกรอง
+              Save triage
             </button>
             {ticket.status === 'open' && !sendNow && (
               <button className="btn" disabled={!!busy} onClick={() => void startWork()}>
-                {busy === 'progress' ? 'กำลังบันทึก…' : 'เริ่มดำเนินการ'}
+                {busy === 'progress' ? 'Saving…' : 'Start work'}
               </button>
             )}
           </div>
@@ -468,8 +468,8 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
               <label className="check">
                 <input type="checkbox" checked={sendNow} onChange={(e) => setSendWithStart(e.target.checked)} />
                 <span>
-                  <strong>ส่งต่อฝ่ายซ่อมบำรุง (Team 10) ด้วย</strong>
-                  <span className="small muted"> หมวด Facility เป็นงานซ่อม ระบบติ๊กไว้ให้</span>
+                  <strong>Also send to Maintenance (Team 10)</strong>
+                  <span className="small muted"> Facility tickets are repairs, so this is ticked for you</span>
                 </span>
               </label>
               {sendNow && (
@@ -477,7 +477,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                   {repairFields}
                   <div>
                     <button className="btn" disabled={!!busy || !repairReady} onClick={() => void startWork()}>
-                      {busy === 'progress' ? 'กำลังส่ง…' : 'เริ่มดำเนินการ และส่งให้ Team 10'}
+                      {busy === 'progress' ? 'Sending…' : 'Start work and send to Team 10'}
                     </button>
                   </div>
                 </>
@@ -492,28 +492,28 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
           <StepTitle
             n={2}
             state={s2}
-            label="ส่งต่อฝ่ายซ่อมบำรุง"
-            stateLabel={s2 === 'done' ? 'ผูกใบงานแล้ว' : s2 === 'todo' ? 'ส่งพร้อมเริ่มดำเนินการ' : 'ยังไม่ได้ส่ง'}
+            label="Send to Maintenance"
+            stateLabel={s2 === 'done' ? 'Work order linked' : s2 === 'todo' ? 'Sent when work starts' : 'Not sent yet'}
           />
           {linked ? (
             <p className="small">
-              ผูกกับใบงาน <strong>{ticket.maintenance_work_order_id}</strong> แล้ว
+              Linked to work order <strong>{ticket.maintenance_work_order_id}</strong>
               <br />
-              <span className="muted">สถานะล่าสุด: {maintenanceLabel(ticket.maintenance_status)}</span>
+              <span className="muted">Latest status: {maintenanceLabel(ticket.maintenance_status)}</span>
             </p>
           ) : s2 === 'todo' ? (
             <p className="step-desc">
-              งานซ่อมส่งให้ Team 10 พร้อมกด "เริ่มดำเนินการ" ในขั้นที่ 1 ผลการส่งจะแสดงที่นี่
+              Repairs are sent to Team 10 when you press "Start work" in step 1. The result will show here.
             </p>
           ) : (
             <>
               {/* Not sent yet (the send at "start" failed, or the admin just marked it as a repair): one button, no big form. */}
               <Notice
                 tone="warn"
-                title={cancelled ? `ใบงาน ${ticket.maintenance_work_order_id} ถูกยกเลิกโดยฝ่ายซ่อมบำรุง` : 'ยังไม่ได้ส่งให้ Team 10'}
+                title={cancelled ? `Work order ${ticket.maintenance_work_order_id} was cancelled by Maintenance` : 'Not sent to Team 10 yet'}
               >
                 <p className="small">
-                  กดส่ง ระบบจะสร้างใบงานที่ Team 10 และผูกกับคำร้องนี้ให้เอง ถ้า Team 10 ยังรับไม่ได้ ใช้ "ผูกเลขใบงานเอง" ด้านล่าง
+                  Press send to create a work order at Team 10 and link it to this ticket. If Team 10 cannot accept it yet, use "Link a work order manually" below.
                 </p>
               </Notice>
               <div className="inline">
@@ -524,14 +524,14 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                     run(
                       'send',
                       () => api.sendWorkOrder(ticket.id, repairPayload()),
-                      'ส่งให้ Team 10 แล้ว ระบบผูกใบงานกับคำร้องนี้ให้แล้ว',
+                      'Sent to Team 10. The work order has been linked to this ticket.',
                     )
                   }
                 >
-                  {busy === 'send' ? 'กำลังส่ง…' : 'ส่งให้ Team 10'}
+                  {busy === 'send' ? 'Sending…' : 'Send to Team 10'}
                 </button>
                 <button type="button" className="btn btn--plain btn--small" onClick={() => setEditRepair((v) => !v)}>
-                  {editRepair ? 'ซ่อนข้อความ' : 'ดู/แก้ข้อความก่อนส่ง'}
+                  {editRepair ? 'Hide details' : 'Review or edit before sending'}
                 </button>
               </div>
               {/* Opens by itself when something is missing (e.g. no location yet), so "send" is never mysteriously grey. */}
@@ -539,32 +539,32 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
 
               {/* Backup way: the admin already has a work order id (e.g. reported in Team 10's own screen). */}
               <details className="fold mt-3">
-                <summary className="small">ผูกเลขใบงานเอง (แจ้งในระบบของ Team 10 แล้ว)</summary>
+                <summary className="small">Link a work order manually (already reported in Team 10's system)</summary>
                 <div className="fold__body">
                   <p className="small muted">
-                    ใช้เมื่อแจ้งซ่อมในระบบของ Team 10 ไปแล้ว (ใส่เลขอ้างอิง
+                    Use this if the repair was reported in Team 10's system (with reference
                     <span className="copy-ref">
                       <code>{ticket.ticket_number}</code>
                       <button type="button" className="btn btn--plain btn--small" onClick={copyRef}>
-                        {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
+                        {copied ? 'Copied' : 'Copy'}
                       </button>
                     </span>
-                    ) หรือเมื่อส่งจากที่นี่ไม่ได้
+                    ) or if sending from here does not work.
                     {portal && (
                       <>
                         {' '}
                         <a href={portal} target="_blank" rel="noopener noreferrer">
-                          เปิดระบบ Team 10 ↗
+                          Open Team 10 ↗
                         </a>
                       </>
                     )}
                   </p>
-                  <Field id="work-order" label="เลขใบงานที่ Team 10 ให้มา" hint="วางเลขใบงาน (UUID) ไม่ใช่เลข TKT- ของเรา ระบบจะตรวจกับ Team 10 ก่อนบันทึก" error={woProblem ?? undefined}>
+                  <Field id="work-order" label="Work order number from Team 10" hint="Paste the work order number (UUID), not our TKT- number. It is checked with Team 10 before saving." error={woProblem ?? undefined}>
                     <div className="inline">
                       <input
                         id="work-order"
                         className="input"
-                        placeholder="เช่น 7f3c2a9e-1b4d-4c8e-9a21-5d6e7f8a9b01"
+                        placeholder="e.g. 7f3c2a9e-1b4d-4c8e-9a21-5d6e7f8a9b01"
                         value={workOrder}
                         aria-invalid={!!woProblem}
                         onChange={(e) => setWorkOrder(e.target.value)}
@@ -572,9 +572,9 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                       <button
                         className="btn btn--secondary"
                         disabled={!!busy || !woText || !!woProblem}
-                        onClick={() => run('link', () => api.linkWorkOrder(ticket.id, woText), 'ผูกใบงานแล้ว สถานะงานซ่อมจะอัปเดตอัตโนมัติ')}
+                        onClick={() => run('link', () => api.linkWorkOrder(ticket.id, woText), 'Work order linked. The repair status will update automatically.')}
                       >
-                        {busy === 'link' ? 'กำลังตรวจ…' : 'ผูกใบงาน'}
+                        {busy === 'link' ? 'Checking…' : 'Link work order'}
                       </button>
                     </div>
                   </Field>
@@ -587,19 +587,19 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
 
         {/* ③ Resolve — summary required, then confirm */}
         <li className={`action action--${s3}`}>
-          <StepTitle n={3} state={s3} label="ปิดงาน" stateLabel={s3 === 'todo' ? 'ทำหลังเริ่มดำเนินการ' : 'ทำขั้นนี้'} />
+          <StepTitle n={3} state={s3} label="Resolve" stateLabel={s3 === 'todo' ? 'After work starts' : 'To do'} />
           <p className="step-desc">
-            เมื่อปัญหาหายแล้ว (ถ้าเป็นงานซ่อม ให้ถามผู้แจ้งทางแชทก่อน) เขียนสรุปให้ผู้แจ้งเห็น แล้วยืนยัน
-            คำร้องจะเป็น "แก้ไขแล้ว" ระบบไม่ปิดให้เอง แม้ Team 10 แจ้งว่าซ่อมเสร็จ
+            When the problem is fixed (for repairs, confirm with the requester in the chat first), write a summary for the requester and confirm.
+            The ticket becomes "Resolved". The system never resolves it on its own, even when Team 10 reports the repair as done.
           </p>
           {linked && (repairDone ? (
-            <Notice tone="ok" title="ซ่อมเสร็จแล้ว พร้อมปิดงาน" />
+            <Notice tone="ok" title="Repair done, ready to resolve" />
           ) : (
-            <Notice tone="warn" title="งานซ่อมยังไม่เสร็จ">
-              <p className="small">ปิดงานได้ แต่ควรรอให้ Team 10 แจ้งว่าซ่อมเสร็จก่อน</p>
+            <Notice tone="warn" title="Repair not finished yet">
+              <p className="small">You can resolve now, but it is better to wait until Team 10 reports the repair as done.</p>
             </Notice>
           ))}
-          <Field id="resolution-note" label="สรุปการแก้ไข" required hint="ผู้แจ้งจะเห็นข้อความนี้ อย่างน้อย 5 ตัวอักษร">
+          <Field id="resolution-note" label="Resolution summary" required hint="The requester will see this. At least 5 characters.">
             <textarea
               id="resolution-note"
               className="textarea textarea--short"
@@ -613,17 +613,17 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
           {!confirming ? (
             <div>
               <button className="btn" disabled={!!busy || !noteReady} onClick={() => setConfirming(true)}>
-                ปิดงานเป็นแก้ไขแล้ว
+                Resolve ticket
               </button>
             </div>
           ) : (
-            <div className="confirm" role="group" aria-label="ยืนยันการปิดงาน">
-              <p className="small">ปิดคำร้อง <strong>{ticket.ticket_number}</strong>? ผู้แจ้งจะเห็นสรุปนี้ และคำร้องจะเปลี่ยนเป็น "แก้ไขแล้ว"</p>
+            <div className="confirm" role="group" aria-label="Confirm resolution">
+              <p className="small">Resolve <strong>{ticket.ticket_number}</strong>? The requester will see this summary and the ticket will become "Resolved".</p>
               <div className="inline">
-                <button className="btn" disabled={!!busy} onClick={() => run('resolve', () => api.resolve(ticket.id, note.trim()), 'ปิดงานแล้ว')}>
-                  {busy === 'resolve' ? 'กำลังปิดงาน…' : 'ยืนยันปิดงาน'}
+                <button className="btn" disabled={!!busy} onClick={() => run('resolve', () => api.resolve(ticket.id, note.trim()), 'Ticket resolved')}>
+                  {busy === 'resolve' ? 'Resolving…' : 'Confirm and resolve'}
                 </button>
-                <button className="btn btn--plain" disabled={!!busy} onClick={() => setConfirming(false)}>ยกเลิก</button>
+                <button className="btn btn--plain" disabled={!!busy} onClick={() => setConfirming(false)}>Cancel</button>
               </div>
             </div>
           )}

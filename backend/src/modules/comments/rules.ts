@@ -17,7 +17,7 @@ export type Comment = {
 /** Content checks: 1–2000 characters after trim. */
 export function validateContent(content: unknown): string | null {
   const text = typeof content === 'string' ? content.trim() : '';
-  if (!text) return 'กรุณาพิมพ์ข้อความ';
-  if (text.length > 2000) return 'ข้อความยาวเกิน 2,000 ตัวอักษร';
+  if (!text) return 'Please type a message';
+  if (text.length > 2000) return 'Message must be 2,000 characters or fewer';
   return null;
 }

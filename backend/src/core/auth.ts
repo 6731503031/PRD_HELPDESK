@@ -21,14 +21,14 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   const declaredRole = c.req.header('x-user-role') as Role | undefined;
 
   if (!userId || !declaredRole) {
-    throw new ApiError(401, 'Unauthorized', 'ต้องส่ง header x-user-id และ x-user-role');
+    throw new ApiError(401, 'Unauthorized', 'Headers x-user-id and x-user-role are required');
   }
-  if (!ROLES.includes(declaredRole)) throw forbidden('role ไม่ถูกต้อง');
+  if (!ROLES.includes(declaredRole)) throw forbidden('Invalid role');
 
   const identity = await findIdentity(c.env.DB, Number(userId));
-  if (!identity) throw new ApiError(401, 'Unauthorized', 'ไม่พบผู้ใช้นี้ใน Identity');
+  if (!identity) throw new ApiError(401, 'Unauthorized', 'User not found in Identity');
   if (identity.role !== declaredRole) {
-    throw forbidden(`role ไม่ตรงกับ Identity (Identity ระบุว่าเป็น ${identity.role})`);
+    throw forbidden(`Role does not match Identity (Identity says ${identity.role})`);
   }
 
   c.set('user', { id: identity.externalId, role: identity.role, displayName: identity.displayName });
@@ -40,7 +40,7 @@ export const requireRole =
   (...roles: Role[]): MiddlewareHandler<AppEnv> =>
   async (c, next) => {
     if (!roles.includes(c.get('user').role)) {
-      throw forbidden(`ต้องเป็น ${roles.join(' หรือ ')} เท่านั้น`);
+      throw forbidden(`Only ${roles.join(' or ')} can do this`);
     }
     await next();
   };

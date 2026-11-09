@@ -71,7 +71,7 @@ app.use(
 app.route('/api/v1', api);
 app.route('/', api); // legacy paths (Assignment 2)
 
-app.notFound((c) => c.json({ error: 'NotFound', message: 'ไม่พบ endpoint นี้', path: c.req.path }, 404));
+app.notFound((c) => c.json({ error: 'NotFound', message: 'Endpoint not found', path: c.req.path }, 404));
 app.onError(handleError);
 
 export default {

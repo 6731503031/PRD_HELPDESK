@@ -18,10 +18,10 @@ export function validateRepairRequest(
   const pick = (v: unknown, d: string) => (typeof v === 'string' ? v : d).trim();
   const title = pick(body.title, fallback.title);
   const description = pick(body.description, fallback.description);
-  if (title.length < 3) return { ok: false, message: 'กรุณาใส่หัวเรื่องงานซ่อมอย่างน้อย 3 ตัวอักษร' };
-  if (title.length > REPAIR_TITLE_MAX) return { ok: false, message: `หัวเรื่องยาวเกิน ${REPAIR_TITLE_MAX} ตัวอักษร` };
-  if (description.length < 5) return { ok: false, message: 'กรุณาอธิบายงานซ่อมอย่างน้อย 5 ตัวอักษร' };
-  if (description.length > REPAIR_DESCRIPTION_MAX) return { ok: false, message: `รายละเอียดยาวเกิน ${REPAIR_DESCRIPTION_MAX.toLocaleString('en-US')} ตัวอักษร` };
+  if (title.length < 3) return { ok: false, message: 'Please enter a repair title of at least 3 characters' };
+  if (title.length > REPAIR_TITLE_MAX) return { ok: false, message: `Title must be ${REPAIR_TITLE_MAX} characters or fewer` };
+  if (description.length < 5) return { ok: false, message: 'Please describe the repair in at least 5 characters' };
+  if (description.length > REPAIR_DESCRIPTION_MAX) return { ok: false, message: `Description must be ${REPAIR_DESCRIPTION_MAX.toLocaleString('en-US')} characters or fewer` };
   return { ok: true, title, description };
 }
 
@@ -35,9 +35,9 @@ const WORK_ORDER_ID = /^[A-Za-z0-9._-]{1,64}$/;
  */
 export function validateWorkOrderId(value: unknown): { ok: true; id: string } | { ok: false; message: string } {
   const id = typeof value === 'string' ? value.trim() : '';
-  if (!id) return { ok: false, message: 'กรุณาใส่เลขใบงานที่ Team 10 ออกให้' };
-  if (/^tkt-/i.test(id)) return { ok: false, message: 'นี่คือเลขคำร้องของเรา ให้ใส่เลขใบงานที่ Team 10 ออกให้ (เช่น WO-0045)' };
-  if (!WORK_ORDER_ID.test(id)) return { ok: false, message: 'เลขใบงานใช้ได้เฉพาะตัวอักษรอังกฤษ ตัวเลข . _ - ไม่เกิน 64 ตัว' };
+  if (!id) return { ok: false, message: 'Please enter the work order number issued by Team 10' };
+  if (/^tkt-/i.test(id)) return { ok: false, message: 'This is our own ticket number. Enter the work order number issued by Team 10.' };
+  if (!WORK_ORDER_ID.test(id)) return { ok: false, message: 'A work order number may only contain letters, digits, . _ - (up to 64 characters)' };
   return { ok: true, id };
 }
 
@@ -48,11 +48,11 @@ export function parseWebhookEvent(body: unknown): { ok: true; event: WebhookEven
   const text = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.length <= max ? v.trim() : null);
 
   const eventId = text(b.eventId, 128);
-  if (!eventId) return { ok: false, message: 'ต้องมี eventId' };
-  if (b.type !== 'maintenance.status_changed') return { ok: false, message: "type ต้องเป็น 'maintenance.status_changed'" };
+  if (!eventId) return { ok: false, message: 'eventId is required' };
+  if (b.type !== 'maintenance.status_changed') return { ok: false, message: "type must be 'maintenance.status_changed'" };
   const workOrderId = text(data.workOrderId, 64);
-  if (!workOrderId) return { ok: false, message: 'ต้องมี data.workOrderId' };
+  if (!workOrderId) return { ok: false, message: 'data.workOrderId is required' };
   const status = text(data.status, 64);
-  if (!status) return { ok: false, message: 'ต้องมี data.status' };
+  if (!status) return { ok: false, message: 'data.status is required' };
   return { ok: true, event: { eventId, type: 'maintenance.status_changed', workOrderId, status } };
 }

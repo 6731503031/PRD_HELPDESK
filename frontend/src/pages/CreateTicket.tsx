@@ -79,17 +79,17 @@ export function CreateTicket() {
     return (
       <div className="page">
         <div className="page__head">
-          <h1>ส่งคำร้องแล้ว</h1>
-          <p>เก็บเลขคำร้องไว้เพื่อติดตามหรืออ้างอิงกับผู้ดูแล</p>
+          <h1>Ticket submitted</h1>
+          <p>Keep this ticket number to follow up or to refer to it when contacting the Helpdesk team.</p>
         </div>
         <Panel>
-          <p className="muted">เลขที่คำร้อง</p>
+          <p className="muted">Ticket number</p>
           <p className="ticket-number">{created.ticket_number}</p>
           <p className="mt-2">{created.title}</p>
-          <p className="muted small mt-2">แก้หัวเรื่องและรายละเอียดได้จนกว่าผู้ดูแลจะเริ่มดำเนินการ</p>
+          <p className="muted small mt-2">You can edit the subject and description until the Helpdesk team starts work on it.</p>
           <div className="form-actions mt-5">
-            <a className="btn" href={`#/my/${created.id}`}>ดูสถานะคำร้องนี้</a>
-            <button className="btn btn--secondary" onClick={reset}>แจ้งปัญหาเรื่องอื่น</button>
+            <a className="btn" href={`#/my/${created.id}`}>View ticket status</a>
+            <button className="btn btn--secondary" onClick={reset}>Report another issue</button>
           </div>
         </Panel>
       </div>
@@ -99,14 +99,14 @@ export function CreateTicket() {
   return (
     <div className="page">
       <div className="page__head">
-        <h1>แจ้งปัญหาใหม่</h1>
-        <p>อธิบายปัญหาให้ชัดเจน ผู้ดูแลจะคัดกรองและแจ้งความคืบหน้าในคำร้องนี้</p>
+        <h1>Report an issue</h1>
+        <p>Describe the problem clearly. The Helpdesk team will review it and post updates on this ticket.</p>
       </div>
 
       <div className="layout-aside">
-        <Panel title="รายละเอียดปัญหา">
+        <Panel title="Problem details">
           <form className="form" onSubmit={submit} noValidate>
-            <Field id="subject" label="หัวเรื่อง" required hint="สั้น ๆ ว่าเกิดอะไร ที่ไหน เช่น แอร์ห้อง B-204 ไม่เย็น" error={fieldErrors.subject}>
+            <Field id="subject" label="Subject" required hint="What happened and where, e.g. Air conditioner in room B-204 not cooling" error={fieldErrors.subject}>
               <input
                 id="subject"
                 className="input"
@@ -119,7 +119,7 @@ export function CreateTicket() {
               />
             </Field>
 
-            <Field id="description" label="รายละเอียด" required hint="เกิดตั้งแต่เมื่อไร ลองทำอะไรไปแล้ว กระทบการเรียนหรือทำงานอย่างไร" error={fieldErrors.description}>
+            <Field id="description" label="Description" required hint="When it started, what you have tried, and how it affects your study or work" error={fieldErrors.description}>
               <textarea
                 id="description"
                 className="textarea"
@@ -132,7 +132,7 @@ export function CreateTicket() {
               />
             </Field>
 
-            <Field id="category" label="หมวดหมู่" required error={fieldErrors.category_id}>
+            <Field id="category" label="Category" required error={fieldErrors.category_id}>
               {categoriesError ? <ErrorNotice error={categoriesError} /> : null}
               <select
                 id="category"
@@ -142,7 +142,7 @@ export function CreateTicket() {
                 aria-invalid={!!fieldErrors.category_id}
                 required
               >
-                <option value="">เลือกหมวดหมู่</option>
+                <option value="">Select a category</option>
                 {categories?.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}{c.description ? ` — ${c.description}` : ''}
@@ -153,7 +153,7 @@ export function CreateTicket() {
 
             <fieldset className="field" aria-invalid={!!fieldErrors.urgency}>
               <legend>
-                ความเร่งด่วน<span className="req" aria-hidden="true">*</span>
+                Urgency<span className="req" aria-hidden="true">*</span>
               </legend>
               <div className="choice-row">
                 {PRIORITIES.map((p) => (
@@ -163,27 +163,27 @@ export function CreateTicket() {
                   </label>
                 ))}
               </div>
-              <span className="hint">{urgency ? PRIORITY_HINT[urgency] : 'เลือกตามผลกระทบที่เกิดขึ้นจริง'}</span>
+              <span className="hint">{urgency ? PRIORITY_HINT[urgency] : 'Choose based on the actual impact'}</span>
               {fieldErrors.urgency && <span className="error">{fieldErrors.urgency}</span>}
             </fieldset>
 
             {submitError && !Object.keys(fieldErrors).length ? <ErrorNotice error={submitError} /> : null}
             {Object.keys(fieldErrors).length > 0 && (
-              <Notice tone="error" title="กรุณาแก้ไขช่องที่ทำเครื่องหมายไว้" />
+              <Notice tone="error" title="Please correct the highlighted fields" />
             )}
 
             <div className="form-actions">
               <button className="btn" type="submit" disabled={submitting}>
-                {submitting ? 'กำลังส่ง…' : 'ส่งคำร้อง'}
+                {submitting ? 'Submitting…' : 'Submit ticket'}
               </button>
             </div>
           </form>
         </Panel>
 
         <div>
-          <Panel title="ให้ระบบช่วยจัดหมวด" quiet>
+          <Panel title="Suggest a category" quiet>
             <p className="small">
-              ระบบอ่านหัวเรื่องและรายละเอียด แล้วเสนอหมวดหมู่และความเร่งด่วน คุณแก้ไขได้ทุกช่องก่อนส่ง
+              The system reads the subject and description and suggests a category and urgency. You can change every field before submitting.
             </p>
             <div className="mt-3">
               <button
@@ -192,37 +192,37 @@ export function CreateTicket() {
                 onClick={askSuggestion}
                 disabled={suggesting || subject.trim().length < 5 || description.trim().length < 10}
               >
-                {suggesting ? 'กำลังวิเคราะห์…' : 'ขอคำแนะนำ'}
+                {suggesting ? 'Analysing…' : 'Get a suggestion'}
               </button>
             </div>
             {suggestError ? <div className="mt-3"><ErrorNotice error={suggestError} /></div> : null}
             {suggestion && (
               <div className="suggestion" aria-live="polite">
                 <dl className="meta">
-                  <dt>หมวดหมู่</dt>
+                  <dt>Category</dt>
                   <dd>{suggestion.category_name}</dd>
-                  <dt>ความเร่งด่วน</dt>
+                  <dt>Urgency</dt>
                   <dd>{PRIORITY_LABEL[suggestion.priority]}</dd>
-                  <dt>ส่งต่อไปยัง</dt>
+                  <dt>Route to</dt>
                   <dd>{ROUTE_LABEL[suggestion.route] ?? suggestion.route}</dd>
                 </dl>
                 <p className="muted small mt-2">
-                  {suggestion.source === 'ai' ? 'แนะนำโดย AI' : 'แนะนำตามกฎของระบบ (AI ไม่พร้อมใช้งาน)'}
+                  {suggestion.source === 'ai' ? 'Suggested by AI' : 'Suggested by system rules (AI unavailable)'}
                   {suggestion.reason ? `: ${suggestion.reason}` : ''}
                 </p>
                 <button className="btn btn--plain mt-2" type="button" onClick={applySuggestion}>
-                  ใช้ค่าที่แนะนำ
+                  Apply suggestion
                 </button>
               </div>
             )}
           </Panel>
 
-          <Panel title="หลังจากส่งคำร้อง" quiet>
+          <Panel title="What happens next" quiet>
             <ol className="steps small">
-              <li>ระบบออกเลขคำร้องให้ทันที</li>
-              <li>ผู้ดูแลคัดกรองและเริ่มดำเนินการ ก่อนถึงตอนนั้นคุณยังแก้คำร้องได้</li>
-              <li>ถ้าเป็นงานซ่อม ผู้ดูแลจะส่งต่อฝ่ายซ่อมบำรุง และสถานะงานซ่อมจะขึ้นในคำร้องนี้เอง</li>
-              <li>เมื่อแก้ไขเสร็จ คุณจะเห็นสรุปการแก้ไขที่ "คำร้องของฉัน"</li>
+              <li>You get a ticket number straight away.</li>
+              <li>The Helpdesk team reviews it and starts work. Until then you can still edit your ticket.</li>
+              <li>Repairs are sent to Maintenance, and the repair status appears on this ticket automatically.</li>
+              <li>When it is resolved, you will see a summary in "My tickets".</li>
             </ol>
           </Panel>
         </div>

@@ -22,26 +22,26 @@ export const triageRoutes = new Hono<AppEnv>();
 triageRoutes.post('/tickets/suggest', async (c) => {
   const body = await readJson<Record<string, unknown>>(c);
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    throw badRequest('request body ต้องเป็น JSON object');
+    throw badRequest('Request body must be a JSON object');
   }
 
   const subject = typeof body.subject === 'string' ? body.subject.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
   const errors: Record<string, string> = {};
-  if (subject.length < 5 || subject.length > 150) errors.subject = 'หัวเรื่องต้องมีความยาว 5–150 ตัวอักษร';
-  if (description.length < 10 || description.length > 5000) errors.description = 'รายละเอียดต้องมีความยาว 10–5,000 ตัวอักษร';
+  if (subject.length < 5 || subject.length > 150) errors.subject = 'Subject must be 5–150 characters';
+  if (description.length < 10 || description.length > 5000) errors.description = 'Description must be 10–5,000 characters';
   if (body.urgency !== undefined && !PRIORITIES.includes(body.urgency as Priority)) {
-    errors.urgency = 'ระดับความเร่งด่วนไม่ถูกต้อง';
+    errors.urgency = 'Invalid urgency';
   }
   if (Object.keys(errors).length) {
-    throw new ApiError(422, 'ValidationError', 'ข้อมูลไม่ครบหรือไม่ถูกต้อง', { fields: errors });
+    throw new ApiError(422, 'ValidationError', 'Some fields are missing or invalid', { fields: errors });
   }
 
   const { results } = await c.env.DB.prepare(
     'SELECT id, name FROM ticket_categories WHERE is_active = 1 ORDER BY id',
   ).all<Category>();
   const categories = results ?? [];
-  if (categories.length === 0) throw new ApiError(503, 'NoCategories', 'ยังไม่มีหมวดหมู่ที่เปิดใช้งาน');
+  if (categories.length === 0) throw new ApiError(503, 'NoCategories', 'No active categories yet');
 
   const input = {
     subject,

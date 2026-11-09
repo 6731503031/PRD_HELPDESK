@@ -6,11 +6,11 @@ export const REPAIR_CATEGORIES = ['Plumbing', 'Electrical', 'HVAC', 'Safety', 'N
 export type RepairCategory = (typeof REPAIR_CATEGORIES)[number];
 
 export const REPAIR_CATEGORY_LABEL: Record<RepairCategory, string> = {
-  Plumbing: 'Plumbing (ประปา น้ำรั่ว ห้องน้ำ)',
-  Electrical: 'Electrical (ไฟฟ้า ปลั๊ก หลอดไฟ)',
-  HVAC: 'HVAC (แอร์ ระบายอากาศ)',
-  Safety: 'Safety (ความปลอดภัย)',
-  'Not sure': 'Not sure (ไม่แน่ใจ)',
+  Plumbing: 'Plumbing (water, leaks, toilets)',
+  Electrical: 'Electrical (power, sockets, lights)',
+  HVAC: 'HVAC (air conditioning, ventilation)',
+  Safety: 'Safety',
+  'Not sure': 'Not sure',
 };
 
 /** Checked in this order: the first group with a matching word wins. Thai words are matched as plain text. */
