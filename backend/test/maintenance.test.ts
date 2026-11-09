@@ -134,24 +134,36 @@ describe('Team 10 client without a URL (F13, no network)', () => {
 
 describe('repair text the admin sends to Team 10', () => {
   const ticket = { title: 'Air conditioner in B-204', description: 'It does not cool at all.' };
+  const where = { location: 'Building B, Room B-204', category: 'HVAC' };
   it('falls back to the ticket text and trims what the admin typed', () => {
-    expect(validateRepairRequest({}, ticket)).toEqual({ ok: true, ...ticket });
-    expect(validateRepairRequest({ title: '  Aircon B-204  ', description: ' No cold air ' }, ticket)).toEqual({
-      ok: true,
-      title: 'Aircon B-204',
-      description: 'No cold air',
-    });
+    expect(validateRepairRequest(where, ticket)).toEqual({ ok: true, ...ticket, ...where });
+    expect(
+      validateRepairRequest({ title: '  Aircon B-204  ', description: ' No cold air ', location: ' B-204 ', category: 'HVAC' }, ticket),
+    ).toEqual({ ok: true, title: 'Aircon B-204', description: 'No cold air', location: 'B-204', category: 'HVAC' });
   });
   it('rejects empty or too long text', () => {
-    expect(validateRepairRequest({ title: ' ' }, ticket).ok).toBe(false);
-    expect(validateRepairRequest({ description: 'x' }, ticket).ok).toBe(false);
-    expect(validateRepairRequest({ title: 'x'.repeat(151) }, ticket).ok).toBe(false);
-    expect(validateRepairRequest({ description: 'x'.repeat(5001) }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, title: ' ' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, description: 'x' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, title: 'x'.repeat(151) }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, description: 'x'.repeat(5001) }, ticket).ok).toBe(false);
+  });
+  it('needs a location (Team 10 must know where to go)', () => {
+    expect(validateRepairRequest({ category: 'HVAC' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, location: ' ' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, location: 'x'.repeat(201) }, ticket).ok).toBe(false);
+  });
+  it("category is one of Team 10's five values, exactly", () => {
+    for (const category of ['Plumbing', 'Electrical', 'HVAC', 'Safety', 'Not sure']) {
+      expect(validateRepairRequest({ ...where, category }, ticket).ok).toBe(true);
+    }
+    expect(validateRepairRequest({ location: 'B-204' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, category: 'hvac' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ ...where, category: 'Facility' }, ticket).ok).toBe(false);
   });
 });
 
 describe('Team 10 client: create a work order (POST /work-orders)', () => {
-  const input = { ticketRef: 'TKT-00012', title: 'Aircon B-204', description: 'No cold air' };
+  const input = { ticketRef: 'TKT-00012', title: 'Aircon B-204', description: 'No cold air', location: 'Building B, Room B-204', category: 'HVAC' };
   const env = (over: object = {}) =>
     ({ ENVIRONMENT: 'production', MAINTENANCE_API_URL: 'https://t10.test/api/v1/', MAINTENANCE_API_KEY: 'k1', ...over }) as never;
   const reply = (status: number, body: unknown) =>

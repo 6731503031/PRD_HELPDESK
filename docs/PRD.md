@@ -189,7 +189,7 @@ Helpdesk stores only:
 `maintenance_work_order_id`
 
 ### 6.2 Send or Link Work Order
-**Main way (send).** From the ticket page the Admin checks the repair text (title and description, pre-filled from the ticket and editable so personal details can be removed) and sends it. Helpdesk calls Maintenance `POST /api/v1/work-orders` with `ticketRef`, `title` and `description`, then links the returned work-order ID to the ticket. The Admin never has to open the Maintenance system.
+**Main way (send).** From the ticket page the Admin checks the repair text (title and description, pre-filled from the ticket and editable so personal details can be removed) and sends it. Helpdesk calls Maintenance `POST /api/v1/work-orders` with `ticketRef`, `title`, `description`, `location` (typed by the Admin, since Helpdesk tickets have no location field) and `category` (one of Maintenance's five: `Plumbing`, `Electrical`, `HVAC`, `Safety`, `Not sure`), then links the returned work-order ID to the ticket. Only Facility tickets can be sent. The Admin never has to open the Maintenance system.
 
 **Backup way (link).** If the Admin already has a work-order ID from Maintenance, they can link it by hand. Helpdesk checks it with `GET /api/v1/work-orders/{id}` first.
 
