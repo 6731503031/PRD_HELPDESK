@@ -10,6 +10,7 @@ import type { Category, Priority, TicketDetail as Detail } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, ROUTE_LABEL, formatDateTime, isRepairDone, maintenanceLabel, statusLabel } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { REPAIR_CATEGORIES, REPAIR_CATEGORY_LABEL, guessRepairCategory, type RepairCategory } from '../lib/repair';
 import { Avatar, Icon } from './Icon';
 import { ErrorNotice, Field, Loading, Notice, Panel, PriorityText, StatusBadge, StatusTrack } from './ui';
 
@@ -260,6 +261,9 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const [workOrder, setWorkOrder] = useState('');
   const [repairTitle, setRepairTitle] = useState(ticket.title);
   const [repairDescription, setRepairDescription] = useState(ticket.description);
+  // Team 10 also needs where to go (our tickets have no location field) and one of their 5 categories.
+  const [repairLocation, setRepairLocation] = useState('');
+  const [repairCategory, setRepairCategory] = useState<RepairCategory>(() => guessRepairCategory(`${ticket.title} ${ticket.description}`));
   /** Step ②: show the repair text so the admin can check or edit it before sending. */
   const [editRepair, setEditRepair] = useState(false);
   /** null = not touched yet: follow the default (ticked for repairs). */
@@ -317,7 +321,54 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
     : null;
   const woText = workOrder.trim();
   const woProblem = /^tkt-/i.test(woText) ? 'This is our own ticket number. Paste the work order number issued by Team 10.' : null;
-  const repairReady = repairTitle.trim().length >= 3 && repairDescription.trim().length >= 5;
+  const repairReady = repairTitle.trim().length >= 3 && repairDescription.trim().length >= 5 && repairLocation.trim().length >= 2;
+  const repairPayload = () => ({
+    title: repairTitle.trim(),
+    description: repairDescription.trim(),
+    location: repairLocation.trim(),
+    category: repairCategory,
+  });
+  /** What goes to Team 10 — the same fields in step ① (start + send) and step ② (send again). */
+  const repairFields = (
+    <>
+      <p className="small">
+        Reference <code>{ticket.ticket_number}</code>
+      </p>
+      <Field id="repair-title" label="Repair title" required>
+        <input id="repair-title" className="input" value={repairTitle} maxLength={150} onChange={(e) => setRepairTitle(e.target.value)} />
+      </Field>
+      <div className="grid-2">
+        <Field id="repair-category" label="Repair category" required hint="Guessed from the ticket text; you can change it">
+          <select id="repair-category" className="select" value={repairCategory} onChange={(e) => setRepairCategory(e.target.value as RepairCategory)}>
+            {REPAIR_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {REPAIR_CATEGORY_LABEL[c]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field id="repair-location" label="Location" required hint="So the technician can find it, e.g. Building B, Room B-204">
+          <input
+            id="repair-location"
+            className="input"
+            value={repairLocation}
+            maxLength={200}
+            placeholder="e.g. Building B, Room B-204"
+            onChange={(e) => setRepairLocation(e.target.value)}
+          />
+        </Field>
+      </div>
+      <Field id="repair-description" label="Description" required hint="Remove any names, emails or phone numbers. Team 10 only receives the text in this box and the reference.">
+        <textarea
+          id="repair-description"
+          className="textarea textarea--short"
+          value={repairDescription}
+          maxLength={5000}
+          onChange={(e) => setRepairDescription(e.target.value)}
+        />
+      </Field>
+    </>
+  );
   const sendNow = isRepair && (sendWithStart ?? true);
 
   /**
@@ -338,7 +389,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
       setResult({ ok: true, text: 'Work started. The requester can no longer edit the ticket.' });
     } else {
       try {
-        await api.sendWorkOrder(ticket.id, { title: repairTitle.trim(), description: repairDescription.trim() });
+        await api.sendWorkOrder(ticket.id, repairPayload());
         setResult({ ok: true, text: 'Work started and sent to Team 10. The work order has been linked to this ticket.' });
       } catch (err) {
         setResult({
@@ -423,26 +474,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
               </label>
               {sendNow && (
                 <>
-                  <p className="small">
-                    Reference <code>{ticket.ticket_number}</code>
-                  </p>
-                  <Field id="repair-title" label="Repair title" required>
-                    <input id="repair-title" className="input" value={repairTitle} maxLength={150} onChange={(e) => setRepairTitle(e.target.value)} />
-                  </Field>
-                  <Field
-                    id="repair-description"
-                    label="Description"
-                    required
-                    hint="Say where the technician should go (building, room) and remove any names, emails or phone numbers. Team 10 only receives this text and the reference."
-                  >
-                    <textarea
-                      id="repair-description"
-                      className="textarea textarea--short"
-                      value={repairDescription}
-                      maxLength={5000}
-                      onChange={(e) => setRepairDescription(e.target.value)}
-                    />
-                  </Field>
+                  {repairFields}
                   <div>
                     <button className="btn" disabled={!!busy || !repairReady} onClick={() => void startWork()}>
                       {busy === 'progress' ? 'Sending…' : 'Start work and send to Team 10'}
@@ -491,7 +523,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                   onClick={() =>
                     run(
                       'send',
-                      () => api.sendWorkOrder(ticket.id, { title: repairTitle.trim(), description: repairDescription.trim() }),
+                      () => api.sendWorkOrder(ticket.id, repairPayload()),
                       'Sent to Team 10. The work order has been linked to this ticket.',
                     )
                   }
@@ -502,30 +534,8 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                   {editRepair ? 'Hide details' : 'Review or edit before sending'}
                 </button>
               </div>
-              {editRepair && (
-                <div className="handoff__box">
-                  <p className="small">
-                    Reference <code>{ticket.ticket_number}</code>
-                  </p>
-                  <Field id="repair-title" label="Repair title" required>
-                    <input id="repair-title" className="input" value={repairTitle} maxLength={150} onChange={(e) => setRepairTitle(e.target.value)} />
-                  </Field>
-                  <Field
-                    id="repair-description"
-                    label="Description"
-                    required
-                    hint="Say where the technician should go (building, room) and remove any names, emails or phone numbers. Team 10 only receives this text and the reference."
-                  >
-                    <textarea
-                      id="repair-description"
-                      className="textarea textarea--short"
-                      value={repairDescription}
-                      maxLength={5000}
-                      onChange={(e) => setRepairDescription(e.target.value)}
-                    />
-                  </Field>
-                </div>
-              )}
+              {/* Opens by itself when something is missing (e.g. no location yet), so "send" is never mysteriously grey. */}
+              {(editRepair || !repairReady) && <div className="handoff__box">{repairFields}</div>}
 
               {/* Backup way: the admin already has a work order id (e.g. reported in Team 10's own screen). */}
               <details className="fold mt-3">

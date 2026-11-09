@@ -92,7 +92,7 @@ export const api = {
 
   // maintenance (P3)
   /** Main way: Helpdesk creates the work order at Team 10 and links it. */
-  sendWorkOrder: (id: number, input: { title: string; description: string }) =>
+  sendWorkOrder: (id: number, input: { title: string; description: string; location: string; category: string }) =>
     request<{ maintenance_work_order_id: string; work_order_status: string }>(`/tickets/${id}/send-maintenance`, post(input)),
   /** Backup way: link a work order id the admin already has. */
   linkWorkOrder: (id: number, workOrderId: string) =>
