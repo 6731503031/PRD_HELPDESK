@@ -81,7 +81,7 @@ check "webhook: unknown status → 400"    400 "$(hook "$(evt "e-$RUN-4" "$WO" t
 check "webhook: not JSON → 400"          400 "$(hook 'not json')"
 check "webhook: cancelled → 200"         200 "$(hook "$(evt "e-$RUN-5" "$WO" cancelled)")"
 check "link: new one after cancel → 200" 200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
-check "AI suggest (P4)"            501 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"
+check "AI suggest: empty body → 422" 422 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"
 check "admin stats (P4)"           501 "$(code "$BASE/admin/stats" "${ADMIN[@]}")"
 echo "=== $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]
