@@ -10,7 +10,7 @@ import type { Category, Priority, TicketDetail as Detail } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, ROUTE_LABEL, formatDateTime, isRepairDone, maintenanceLabel, statusLabel } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
-import { REPAIR_CATEGORIES, REPAIR_CATEGORY_LABEL, guessRepairCategory, type RepairCategory } from '../lib/repair';
+import { REPAIR_CATEGORIES, REPAIR_CATEGORY_LABEL, guessRepairCategory, isRepairCategoryName, type RepairCategory } from '../lib/repair';
 import { Avatar, Icon } from './Icon';
 import { ErrorNotice, Field, Loading, Notice, Panel, PriorityText, StatusBadge, StatusTrack } from './ui';
 
@@ -325,7 +325,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const s1: StepState = started ? 'done' : 'current';
   // The category decides: only Facility (repairs) can go to Team 10. Other categories never see step ②.
   const chosenCategory = categories?.find((c) => c.id === categoryId)?.name ?? ticket.category_name;
-  const isRepair = (chosenCategory ?? '').toLowerCase() === 'facility';
+  const isRepair = isRepairCategoryName(chosenCategory);
   const showStep2 = isRepair || linked || cancelled;
   // ② needs ① first: a repair is sent when the admin starts the work (UC-07 → UC-08).
   const s2: StepState = linked ? 'done' : !started ? 'todo' : 'current';
@@ -334,11 +334,14 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
     : null;
   const woText = workOrder.trim();
   const woProblem = /^tkt-/i.test(woText) ? 'This is our own ticket number. Paste the work order number issued by Team 10.' : null;
-  const repairReady = repairTitle.trim().length >= 3 && repairDescription.trim().length >= 5 && repairLocation.trim().length >= 2;
+  // The requester's location wins (it is what the screen shows). repairLocation is only typed for older tickets
+  // and is set once on mount, so it can be out of date after the ticket reloads.
+  const sendLocation = (ticket.location ?? repairLocation).trim();
+  const repairReady = repairTitle.trim().length >= 3 && repairDescription.trim().length >= 5 && sendLocation.length >= 2;
   const repairPayload = () => ({
     title: repairTitle.trim(),
     description: repairDescription.trim(),
-    location: repairLocation.trim(),
+    location: sendLocation,
     category: repairCategory,
   });
   /** What goes to Team 10 — the same fields in step ① (start + send) and step ② (send again). */
@@ -380,7 +383,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
           </Field>
         )}
       </div>
-      <Field id="repair-description" label="Description" required hint="Remove any names, emails or phone numbers. Team 10 only receives the text in this box and the reference.">
+      <Field id="repair-description" label="Description" required hint="Remove any names, emails or phone numbers. Team 10 receives the title, this text, the location, the repair category and the reference.">
         <textarea
           id="repair-description"
           className="textarea textarea--short"
