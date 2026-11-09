@@ -26,14 +26,17 @@ export type MaintenanceEffect = {
  */
 export function mapWorkOrderStatus(status: string): MaintenanceEffect | null {
   switch (status) {
+    // One label per status, so the history never shows the same line twice for two different steps.
     case 'reported':
+      return { ticketStatus: null, label: 'Maintenance received the work order' };
     case 'assigned':
-      return { ticketStatus: null, label: 'Sent to Maintenance' };
+      return { ticketStatus: null, label: 'Maintenance assigned a technician' };
     case 'in_progress':
       return { ticketStatus: 'in_progress', label: 'Technician working on it' };
     case 'completed':
-    case 'closed':
       return { ticketStatus: null, label: 'Repair done, awaiting admin confirmation' };
+    case 'closed':
+      return { ticketStatus: null, label: 'Work order closed by Maintenance' };
     case 'cancelled':
       return { ticketStatus: 'in_progress', label: 'Work order cancelled by Maintenance' };
     default:

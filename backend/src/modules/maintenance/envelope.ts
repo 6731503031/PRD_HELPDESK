@@ -15,18 +15,18 @@ export type RepairCategory = (typeof REPAIR_CATEGORIES)[number];
 export type RepairRequest = { title: string; description: string; location: string; category: RepairCategory };
 
 /**
- * The repair the admin sends to Team 10. Title and description fall back to the ticket's own text; location and
- * category are chosen by the admin (our tickets have no location). The admin sees and can edit everything before
+ * The repair the admin sends to Team 10. Title, description and location fall back to the ticket's own values
+ * (the requester typed the location); the category is chosen by the admin. The admin sees and can edit everything before
  * sending, so personal details can be taken out.
  */
 export function validateRepairRequest(
   body: { title?: unknown; description?: unknown; location?: unknown; category?: unknown },
-  fallback: { title: string; description: string },
+  fallback: { title: string; description: string; location?: string },
 ): ({ ok: true } & RepairRequest) | { ok: false; message: string } {
   const pick = (v: unknown, d: string) => (typeof v === 'string' ? v : d).trim();
   const title = pick(body.title, fallback.title);
   const description = pick(body.description, fallback.description);
-  const location = pick(body.location, '');
+  const location = pick(body.location, fallback.location ?? '');
   const category = pick(body.category, '');
   if (title.length < 3) return { ok: false, message: 'Please enter a repair title of at least 3 characters' };
   if (title.length > REPAIR_TITLE_MAX) return { ok: false, message: `Title must be ${REPAIR_TITLE_MAX} characters or fewer` };

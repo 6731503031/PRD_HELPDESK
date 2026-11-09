@@ -19,7 +19,8 @@ check "config"                     200 "$(code "$BASE/config")"
 check "no auth → 401"              401 "$(code "$BASE/tickets/me")"
 check "invalid JSON → 400"         400 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{bad')"
 check "missing fields → 422"       422 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{}')"
-check "create ticket → 201"        201 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Air conditioner in B-204 not working","description":"The room is very hot since this morning","category_id":5,"urgency":"high"}')"
+check "create: no location → 422" 422 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Air conditioner in B-204 not working","description":"The room is very hot since this morning","category_id":5,"urgency":"high"}')"
+check "create ticket → 201"        201 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Air conditioner in B-204 not working","description":"The room is very hot since this morning","location":"Building B, Room B-204","category_id":5,"urgency":"high"}')"
 ID=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])')
 NUM=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["ticket_number"])')
 echo "      created $NUM (id $ID)"
@@ -62,7 +63,7 @@ hook() { # $1 = JSON body, $2 = optional signature override → HTTP code
 evt() { printf '{"eventId":"%s","type":"maintenance.status_changed","data":{"workOrderId":"%s","status":"%s"}}' "$1" "$2" "$3"; }
 tstate() { curl -s "$BASE/tickets/$ID2" "${ADMIN[@]}" | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"];print(d["status"]+"/"+str(d["maintenance_status"]))'; }
 RUN=$RANDOM; WO="WO-MOCK-$RUN"
-code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Projector in B-110 has no signal","description":"Screen stays blue since this morning","category_id":5,"urgency":"high"}' >/dev/null
+code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Projector in B-110 has no signal","description":"Screen stays blue since this morning","location":"Building B, Room B-110","category_id":5,"urgency":"high"}' >/dev/null
 ID2=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])'); NUM2=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["ticket_number"])')
 check "link: requester → 403"            403 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ALICE[@]}" "${J[@]}" -d "{\"work_order_id\":\"$WO\"}")"
 check "link: our own TKT number → 400"   400 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"$NUM2\"}")"
@@ -84,16 +85,17 @@ check "webhook: not JSON → 400"          400 "$(hook 'not json')"
 check "webhook: cancelled → 200"         200 "$(hook "$(evt "e-$RUN-5" "$WO" cancelled)")"
 check "link: new one after cancel → 200" 200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
 echo "--- Team 10: send the repair from Helpdesk (main way; local run answers a WO-MOCK-<uuid>) ---"
-code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Light in B-301 keeps flickering","description":"The ceiling light flickers all day","category_id":5,"urgency":"medium"}' >/dev/null
+code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Light in B-301 keeps flickering","description":"The ceiling light flickers all day","location":"Building B, Room B-301","category_id":5,"urgency":"medium"}' >/dev/null
 ID3=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])')
 check "send: requester → 403"            403 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ALICE[@]}" "${J[@]}" -d '{}')"
 check "send: before 'start' → 409"       409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
 check "admin starts the work → 200"      200 "$(code -X PATCH "$BASE/tickets/$ID3" "${ADMIN[@]}" "${J[@]}" -d '{"status":"in_progress"}')"
 check "send: empty title → 400"          400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":" "}')"
-check "send: no location → 400"         400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"category":"Electrical"}')"
+check "send: empty location → 400"      400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"category":"Electrical","location":" "}')"
 check "send: unknown category → 400"     400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"location":"Building B, Room B-301","category":"Facility"}')"
 check "send: repair → 200"               200 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":"Flickering light B-301","description":"Ceiling light flickers all day","location":"Building B, Room B-301","category":"Electrical"}')"
 WO3=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["maintenance_work_order_id"])')
+check "  the Team 10 category is kept"    "Electrical" "$(curl -s "$BASE/tickets/$ID3" "${ADMIN[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["maintenance_category"])')"
 echo "      work order $WO3"
 check "send: again → 409"                409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
 check "send: webhook for it → 200"       200 "$(hook "$(evt "e-$RUN-6" "$WO3" in_progress)")"

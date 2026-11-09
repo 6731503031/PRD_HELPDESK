@@ -20,6 +20,8 @@ export type Ticket = {
   ticket_number: string;
   title: string;
   description: string;
+  /** Where the problem is (requester). NULL on tickets created before migration 0005. */
+  location: string | null;
   status: TicketStatus;
   priority: Priority;
   category_id: number;
@@ -30,6 +32,8 @@ export type Ticket = {
   maintenance_work_order_id: string | null;
   maintenance_status: string | null;
   maintenance_status_at: string | null;
+  /** Team 10 category chosen by the admin when sending (envelope.ts REPAIR_CATEGORIES). */
+  maintenance_category: string | null;
   escalated_at: string | null;
   ai_category_id: number | null; // PRD §8: suggestion kept for the admin (F31)
   ai_priority: Priority | null;
@@ -48,13 +52,14 @@ export function ticketNumber(id: number): string {
 export type CreateInput = {
   title: string;
   description: string;
+  location: string;
   category_id: number;
   priority: Priority;
   customer_id?: number;
 };
 
 /**
- * FR-03: subject, description, category, urgency are required.
+ * FR-03: subject, description, location, category, urgency are required.
  * Accepts PRD names (subject / urgency) and Assignment 2 names (title / priority).
  * Returns the cleaned input, or a list of field errors.
  */
@@ -64,6 +69,7 @@ export function validateCreate(
   const errors: Record<string, string> = {};
   const title = String(body.subject ?? body.title ?? '').trim();
   const description = String(body.description ?? '').trim();
+  const location = String(body.location ?? '').trim();
   const categoryId = Number(body.category_id);
   const priority = String(body.urgency ?? body.priority ?? '').trim();
 
@@ -71,6 +77,8 @@ export function validateCreate(
   if (title.length > 150) errors.subject = 'Subject must be 150 characters or fewer';
   if (description.length < 10) errors.description = 'Please describe the problem in at least 10 characters';
   if (description.length > 5000) errors.description = 'Description must be 5,000 characters or fewer';
+  const locationProblem = checkLocation(location);
+  if (locationProblem) errors.location = locationProblem;
   if (!Number.isInteger(categoryId) || categoryId <= 0) errors.category_id = 'Please select a category';
   if (!PRIORITIES.includes(priority as Priority)) errors.urgency = 'Please select an urgency';
 
@@ -80,11 +88,20 @@ export function validateCreate(
     value: {
       title,
       description,
+      location,
       category_id: categoryId,
       priority: priority as Priority,
       customer_id: body.customer_id == null ? undefined : Number(body.customer_id),
     },
   };
+}
+
+export const LOCATION_MAX = 200;
+/** Where the problem is: 2–200 characters. Returns the problem, or null when fine. */
+export function checkLocation(location: string): string | null {
+  if (location.length < 2) return 'Please enter the location (e.g. building and room)';
+  if (location.length > LOCATION_MAX) return `Location must be ${LOCATION_MAX} characters or fewer`;
+  return null;
 }
 
 export const isStaff = (role: Role) => role === 'admin';
@@ -99,7 +116,7 @@ export function canViewTicket(user: AuthUser, ticket: Pick<Ticket, 'customer_id'
  * A requester may only fix the wording of their own ticket while it is still open.
  */
 export function editableFields(role: Role): string[] {
-  const requester = ['title', 'description'];
+  const requester = ['title', 'description', 'location'];
   if (!isStaff(role)) return requester;
   return [...requester, 'priority', 'status', 'category_id', 'resolution_note', 'wellbeing_service_slug'];
 }

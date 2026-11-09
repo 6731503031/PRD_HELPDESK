@@ -79,6 +79,10 @@ describe('status mapping — what happens to the ticket', () => {
   it('knows every status of the table in the Team 10 doc', () => {
     for (const s of ['reported', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled']) expect(mapWorkOrderStatus(s)).not.toBeNull();
   });
+  it('gives every Team 10 status its own history label (no "Sent to Maintenance" twice)', () => {
+    const labels = ['reported', 'assigned', 'in_progress', 'completed', 'closed', 'cancelled'].map((s) => mapWorkOrderStatus(s)!.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
   it('starts an open ticket when the repair starts, and does nothing if it already runs', () => {
     const start = mapWorkOrderStatus('in_progress')!;
     expect(nextTicketStatus('open', start)).toBe('in_progress');
@@ -146,6 +150,12 @@ describe('repair text the admin sends to Team 10', () => {
     expect(validateRepairRequest({ ...where, description: 'x' }, ticket).ok).toBe(false);
     expect(validateRepairRequest({ ...where, title: 'x'.repeat(151) }, ticket).ok).toBe(false);
     expect(validateRepairRequest({ ...where, description: 'x'.repeat(5001) }, ticket).ok).toBe(false);
+  });
+  it("uses the requester's location when the admin leaves it as is", () => {
+    const r = validateRepairRequest({ category: 'HVAC' }, { ...ticket, location: 'Building B, Room B-204' });
+    expect(r.ok && r.location).toBe('Building B, Room B-204');
+    const edited = validateRepairRequest({ category: 'HVAC', location: 'Room B-205' }, { ...ticket, location: 'B-204' });
+    expect(edited.ok && edited.location).toBe('Room B-205');
   });
   it('needs a location (Team 10 must know where to go)', () => {
     expect(validateRepairRequest({ category: 'HVAC' }, ticket).ok).toBe(false);

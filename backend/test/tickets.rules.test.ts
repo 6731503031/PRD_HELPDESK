@@ -9,24 +9,32 @@ import {
   canViewTicket,
   editableFields,
   ticketNumber,
-  validateCreate,
-} from '../src/modules/tickets/rules';
+  validateCreate, checkLocation } from '../src/modules/tickets/rules';
 
 const alice = { id: 1, role: 'customer' as const, displayName: 'Alice' };
 const bob = { id: 2, role: 'customer' as const, displayName: 'Bob' };
 const admin = { id: 5, role: 'admin' as const, displayName: 'Admin' };
 
 describe('#1 Create ticket (FR-03)', () => {
-  it('accepts subject, description, category and urgency', () => {
-    const r = validateCreate({ subject: 'Wi-Fi down in library', description: 'Cannot connect since 9am', category_id: 1, urgency: 'high' });
+  it('accepts subject, description, location, category and urgency', () => {
+    const r = validateCreate({ subject: 'Wi-Fi down in library', description: 'Cannot connect since 9am', location: ' Main library, 2nd floor ', category_id: 1, urgency: 'high' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value).toMatchObject({ title: 'Wi-Fi down in library', priority: 'high', category_id: 1 });
+    if (r.ok) expect(r.value).toMatchObject({ title: 'Wi-Fi down in library', location: 'Main library, 2nd floor', priority: 'high', category_id: 1 });
   });
 
   it('rejects missing fields with a message per field', () => {
     const r = validateCreate({ subject: 'Hi', description: '', category_id: 0, urgency: 'whenever' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['category_id', 'description', 'subject', 'urgency']);
+    if (!r.ok) expect(Object.keys(r.errors).sort()).toEqual(['category_id', 'description', 'location', 'subject', 'urgency']);
+  });
+
+  it('needs a location for every category, up to 200 characters', () => {
+    const base = { subject: 'Account locked today', description: 'My password is correct but locked', category_id: 4, urgency: 'urgent' };
+    expect(validateCreate(base).ok).toBe(false);
+    expect(validateCreate({ ...base, location: ' ' }).ok).toBe(false);
+    expect(validateCreate({ ...base, location: 'x'.repeat(201) }).ok).toBe(false);
+    expect(validateCreate({ ...base, location: 'Online' }).ok).toBe(true);
+    expect(checkLocation('B-204')).toBeNull();
   });
 
   it('generates a unique, human-readable ticket number from the id', () => {
@@ -47,7 +55,7 @@ describe('#2 Ownership / access control (FR-07, BR-01, BR-02)', () => {
 
   it('stops requesters from changing status or priority', () => {
     const fields = editableFields('customer');
-    expect(fields).toEqual(['title', 'description']);
+    expect(fields).toEqual(['title', 'description', 'location']);
     expect(fields).not.toContain('status');
   });
 });
