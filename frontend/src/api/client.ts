@@ -65,6 +65,7 @@ export const api = {
     request<{ data: User }>('/me', { method: 'PUT', body: JSON.stringify({ name, email }) }).then((r) => r.data),
 
   // reference
+  config: () => request<{ data: { maintenance_portal_url: string | null } }>('/config').then((r) => r.data),
   users: () => request<{ data: User[] }>('/users').then((r) => r.data),
   categories: (all = false) => request<{ data: Category[] }>(`/categories${all ? '?all=true' : ''}`).then((r) => r.data),
 

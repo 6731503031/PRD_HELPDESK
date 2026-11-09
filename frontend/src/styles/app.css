@@ -440,6 +440,18 @@ fieldset { border: 0; margin: 0; padding: 0; }
   background: var(--subtle); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s4);
 }
 .action--current:first-child { padding-top: var(--s4); }
+.handoff { display: grid; gap: var(--s2); }
+.handoff__box {
+  display: grid; gap: var(--s2); padding: var(--s3) var(--s4);
+  border: 1px dashed var(--line); border-radius: var(--r-md); background: #fff;
+}
+.handoff__box--here { border-style: solid; border-color: var(--brand); }
+.handoff__tag {
+  justify-self: start; font: 600 0.75rem/1.5 var(--sans); padding: 0 var(--s2); border-radius: 999px;
+  background: var(--warn-bg); color: var(--st-progress);
+}
+.handoff__tag--here { background: var(--brand-tint); color: var(--brand-dark); }
+.handoff__arrow { justify-self: center; color: var(--muted); line-height: 1; }
 .substeps { margin: 0; padding-left: 1.3em; display: grid; gap: var(--s3); }
 .substeps li::marker { color: var(--brand); font-weight: 600; }
 .copy-ref { display: inline-flex; align-items: center; gap: var(--s1); margin-left: var(--s1); }

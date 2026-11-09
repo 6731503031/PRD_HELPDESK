@@ -1,2 +1,4 @@
 MAINTENANCE_WEBHOOK_SECRET=dev-secret
 EVENT_SIGNING_SECRET=dev-event-secret
+# Credential for Team 10's API (leave empty until they tell us how they want it)
+MAINTENANCE_API_KEY=

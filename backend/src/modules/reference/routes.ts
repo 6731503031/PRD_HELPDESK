@@ -4,11 +4,13 @@
  *
  *   GET /categories          active categories (?all=true includes deactivated — for Admin page)
  *   GET /users               Identity stub directory (demo "sign in as" picker)
+ *   GET /config              public UI settings (link to Team 10's report page)
  *   GET /tags
  *   GET /health              runbook health check (DB reachable?)
  */
 import { Hono } from 'hono';
 import type { AppEnv } from '../../core/env';
+import { portalUrl } from '../../core/config';
 import { USER_DIRECTORY } from '../../core/identity';
 
 export const referenceRoutes = new Hono<AppEnv>();
@@ -30,6 +32,9 @@ referenceRoutes.get('/users', (c) => {
   }));
   return c.json({ count: data.length, data });
 });
+
+/** Public settings the UI needs (no secrets). */
+referenceRoutes.get('/config', (c) => c.json({ data: { maintenance_portal_url: portalUrl(c.env.MAINTENANCE_PORTAL_URL) } }));
 
 referenceRoutes.get('/tags', async (c) => {
   const { results } = await c.env.DB.prepare('SELECT id, name FROM tags ORDER BY id').all();
