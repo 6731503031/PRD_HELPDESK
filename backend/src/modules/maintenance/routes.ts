@@ -2,7 +2,7 @@
  * Maintenance integration endpoints (PRD §6, §9.2).
  * Owner: P3 (Maintenance Integration)
  *
- *   POST /tickets/:id/send-maintenance   { title?, description? }  admin only   (F13, main way)
+ *   POST /tickets/:id/send-maintenance   { title?, description?, location, category }  admin only   (F13, main way)
  *   POST /tickets/:id/link-maintenance   { work_order_id }   admin only         (F13, backup way)
  *   POST /webhooks/maintenance           Team 10 -> us, HMAC-signed             (F14, F29)
  *
@@ -45,7 +45,7 @@ const TEAM10_DOWN = 'Cannot reach Team 10. Please try again later (the rest of H
 // ---------- F13 Send (main way): Helpdesk creates the work order at Team 10 and links it ----------
 maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), async (c) => {
   const user = c.get('user');
-  const body = await readJson<{ title?: unknown; description?: unknown }>(c);
+  const body = await readJson<{ title?: unknown; description?: unknown; location?: unknown; category?: unknown }>(c);
 
   const ticket = await getTicket(c.env.DB, parseId(c.req.param('id')));
   if (!ticket) throw notFound('Ticket not found');
@@ -57,7 +57,13 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
   // Team 10 answers 3 s at most; if it is down, nothing is saved and the rest of Helpdesk keeps working.
   const sent = await createWorkOrder(
     c.env,
-    { ticketRef: ticket.ticket_number, title: repair.title, description: repair.description },
+    {
+      ticketRef: ticket.ticket_number,
+      title: repair.title,
+      description: repair.description,
+      location: repair.location,
+      category: repair.category,
+    },
     c.get('correlationId'),
   );
   if (sent.kind === 'rejected') throw badRequest(`Team 10 rejected the request: ${sent.message}`);

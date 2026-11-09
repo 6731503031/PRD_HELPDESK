@@ -52,8 +52,11 @@ export async function fetchWorkOrder(env: Bindings, id: string, correlationId: s
 /** Reason given when Team 10 has no POST /work-orders (404/405). */
 export const CREATE_NOT_SUPPORTED = 'create not supported';
 
-/** What Helpdesk sends to create a work order. No personal data: the admin checks the text before sending. */
-export type NewWorkOrder = { ticketRef: string; title: string; description: string };
+/**
+ * What Helpdesk sends to create a work order (shape agreed with Team 10). No personal data: the admin checks the
+ * text before sending. `category` is one of Team 10's five values (envelope.ts REPAIR_CATEGORIES).
+ */
+export type NewWorkOrder = { ticketRef: string; title: string; description: string; location: string; category: string };
 
 export type CreateResult =
   | { kind: 'created'; workOrder: WorkOrder }
@@ -62,7 +65,7 @@ export type CreateResult =
 
 /**
  * Send a repair to Team 10 so the admin never has to leave Helpdesk:
- *   POST {MAINTENANCE_API_URL}/work-orders  { ticketRef, title, description }
+ *   POST {MAINTENANCE_API_URL}/work-orders  { ticketRef, title, description, location, category }
  *  - same headers as the lookup (X-Correlation-Id, Bearer key when set), same 3 s timeout
  *  - 201 (new) or 200 (Team 10 already has one for this ticketRef) -> created; reads {data:{id,status}} or the bare object
  *  - other 4xx (not 401/403) -> rejected, with Team 10's message to show the admin

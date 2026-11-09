@@ -90,7 +90,9 @@ check "send: requester → 403"            403 "$(code -X POST "$BASE/tickets/$I
 check "send: before 'start' → 409"       409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
 check "admin starts the work → 200"      200 "$(code -X PATCH "$BASE/tickets/$ID3" "${ADMIN[@]}" "${J[@]}" -d '{"status":"in_progress"}')"
 check "send: empty title → 400"          400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":" "}')"
-check "send: repair → 200"               200 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":"Flickering light B-301","description":"Ceiling light flickers all day"}')"
+check "send: no location → 400"         400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"category":"Electrical"}')"
+check "send: unknown category → 400"     400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"location":"Building B, Room B-301","category":"Facility"}')"
+check "send: repair → 200"               200 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":"Flickering light B-301","description":"Ceiling light flickers all day","location":"Building B, Room B-301","category":"Electrical"}')"
 WO3=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["maintenance_work_order_id"])')
 echo "      work order $WO3"
 check "send: again → 409"                409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"

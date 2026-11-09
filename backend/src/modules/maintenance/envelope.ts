@@ -6,23 +6,38 @@
 /** Same limits as a ticket's subject and description (tickets/rules.ts). */
 export const REPAIR_TITLE_MAX = 150;
 export const REPAIR_DESCRIPTION_MAX = 5000;
+export const REPAIR_LOCATION_MAX = 200;
+
+/** Team 10's work order categories — exactly these strings (their report form). */
+export const REPAIR_CATEGORIES = ['Plumbing', 'Electrical', 'HVAC', 'Safety', 'Not sure'] as const;
+export type RepairCategory = (typeof REPAIR_CATEGORIES)[number];
+
+export type RepairRequest = { title: string; description: string; location: string; category: RepairCategory };
 
 /**
- * The repair the admin sends to Team 10. Missing fields fall back to the ticket's own subject and description;
- * the admin sees and can edit both before sending (so personal details can be taken out).
+ * The repair the admin sends to Team 10. Title and description fall back to the ticket's own text; location and
+ * category are chosen by the admin (our tickets have no location). The admin sees and can edit everything before
+ * sending, so personal details can be taken out.
  */
 export function validateRepairRequest(
-  body: { title?: unknown; description?: unknown },
+  body: { title?: unknown; description?: unknown; location?: unknown; category?: unknown },
   fallback: { title: string; description: string },
-): { ok: true; title: string; description: string } | { ok: false; message: string } {
+): ({ ok: true } & RepairRequest) | { ok: false; message: string } {
   const pick = (v: unknown, d: string) => (typeof v === 'string' ? v : d).trim();
   const title = pick(body.title, fallback.title);
   const description = pick(body.description, fallback.description);
+  const location = pick(body.location, '');
+  const category = pick(body.category, '');
   if (title.length < 3) return { ok: false, message: 'Please enter a repair title of at least 3 characters' };
   if (title.length > REPAIR_TITLE_MAX) return { ok: false, message: `Title must be ${REPAIR_TITLE_MAX} characters or fewer` };
+  if (location.length < 2) return { ok: false, message: 'Please enter the location (e.g. building, room) so the technician can find it' };
+  if (location.length > REPAIR_LOCATION_MAX) return { ok: false, message: `Location must be ${REPAIR_LOCATION_MAX} characters or fewer` };
+  if (!REPAIR_CATEGORIES.includes(category as RepairCategory)) {
+    return { ok: false, message: `Repair category must be one of: ${REPAIR_CATEGORIES.join(', ')}` };
+  }
   if (description.length < 5) return { ok: false, message: 'Please describe the repair in at least 5 characters' };
   if (description.length > REPAIR_DESCRIPTION_MAX) return { ok: false, message: `Description must be ${REPAIR_DESCRIPTION_MAX.toLocaleString('en-US')} characters or fewer` };
-  return { ok: true, title, description };
+  return { ok: true, title, description, location, category: category as RepairCategory };
 }
 
 export type WebhookEvent = { eventId: string; type: 'maintenance.status_changed'; workOrderId: string; status: string };
