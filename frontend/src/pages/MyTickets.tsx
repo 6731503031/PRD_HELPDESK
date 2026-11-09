@@ -17,7 +17,7 @@ export function MyTickets({ selectedId }: { selectedId?: number }) {
     return (
       <div className="page">
         <a className="crumb" href="#/my">
-          <Icon name="back" size={16} /> คำร้องของฉัน
+          <Icon name="back" size={16} /> My tickets
         </a>
         <TicketDetail id={selectedId} onChanged={reload} />
       </div>
@@ -28,12 +28,12 @@ export function MyTickets({ selectedId }: { selectedId?: number }) {
     <div className="page">
       <div className="pagebar">
         <div>
-          <h1>คำร้องของฉัน</h1>
-          <p>คำร้องทั้งหมดที่คุณแจ้งไว้ เลือกรายการเพื่อดูสถานะและความคืบหน้า</p>
+          <h1>My tickets</h1>
+          <p>All the tickets you have reported. Select one to see its status and progress.</p>
         </div>
         <div className="pagebar__actions">
           <a className="btn" href="#/new">
-            <Icon name="plus" size={16} /> แจ้งปัญหาใหม่
+            <Icon name="plus" size={16} /> Report an issue
           </a>
         </div>
       </div>
@@ -44,11 +44,11 @@ export function MyTickets({ selectedId }: { selectedId?: number }) {
           <div className="panel__body"><ErrorNotice error={error} /></div>
         ) : data && data.length === 0 ? (
           <div className="empty">
-            <p>คุณยังไม่มีคำร้อง</p>
-            <a className="btn" href="#/new">แจ้งปัญหาใหม่</a>
+            <p>You have no tickets yet.</p>
+            <a className="btn" href="#/new">Report an issue</a>
           </div>
         ) : (
-          <TicketTable tickets={data ?? []} mode="requester" hrefFor={(t) => `/my/${t.id}`} caption="คำร้องของฉัน" />
+          <TicketTable tickets={data ?? []} mode="requester" hrefFor={(t) => `/my/${t.id}`} caption="My tickets" />
         )}
       </Panel>
     </div>

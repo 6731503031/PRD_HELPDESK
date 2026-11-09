@@ -104,7 +104,7 @@ check "chat: same event again adds nothing"   3 "$(sysmsgs)"
 hook "$(evt "e-$RUN-7" "$WO3" completed)" >/dev/null
 check "chat: repair done → +1"               4 "$(sysmsgs)"
 code -X POST "$BASE/tickets/$ID3/resolve" "${ADMIN[@]}" "${J[@]}" -d '{"resolution_note":"Light replaced"}' >/dev/null
-check "chat: resolved with the summary"      "ปิดคำร้องแล้ว สรุปการแก้ไข: Light replaced" "$(curl -s "$BASE/tickets/$ID3/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"][-1]["content"])')"
+check "chat: resolved with the summary"      "Ticket resolved. Summary: Light replaced" "$(curl -s "$BASE/tickets/$ID3/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"][-1]["content"])')"
 hook "$(evt "e-$RUN-8" "$WO3" closed)" >/dev/null
 check "chat: nothing after the ticket is resolved" 5 "$(sysmsgs)"
 check "AI suggest: empty body → 422" 422 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"

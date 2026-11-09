@@ -77,8 +77,8 @@ wellbeingRoutes.get('/wellbeing/services', async (c) => c.json(await getCatalogu
 wellbeingRoutes.get('/tickets/:id/wellbeing-suggestion', async (c) => {
   const id = parseId(c.req.param('id'));
   const ticket = await getTicket(c.env.DB, id);
-  if (!ticket) throw notFound('ไม่พบ ticket');
-  if (!canViewTicket(c.get('user'), ticket)) throw forbidden('ดูได้เฉพาะ ticket ของตัวเอง');
+  if (!ticket) throw notFound('Ticket not found');
+  if (!canViewTicket(c.get('user'), ticket)) throw forbidden('You can only view your own tickets');
 
   const { services, degraded } = await getCatalogue(c);
   const slug = degraded ? null : matchWellbeingSlug(`${ticket.title} ${ticket.description}`);

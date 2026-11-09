@@ -26,7 +26,7 @@ const shape = (p: { id: number; full_name: string; email: string | null }) => ({
 
 authRoutes.post('/auth/guest', async (c) => {
   const parsed = validateProfile(await readJson<{ name?: unknown; email?: unknown }>(c));
-  if (!parsed.ok) throw new ApiError(422, 'ValidationError', 'ข้อมูลไม่ครบหรือไม่ถูกต้อง', { fields: parsed.errors });
+  if (!parsed.ok) throw new ApiError(422, 'ValidationError', 'Some fields are missing or invalid', { fields: parsed.errors });
   const created = await createGuest(c.env.DB, parsed.value);
   return c.json({ message: 'Guest created', data: shape(created) }, 201);
 });
@@ -34,16 +34,16 @@ authRoutes.post('/auth/guest', async (c) => {
 authRoutes.get('/me', async (c) => {
   const user = c.get('user');
   const identity = await findIdentity(c.env.DB, user.id);
-  if (!identity) throw notFound('ไม่พบผู้ใช้');
+  if (!identity) throw notFound('User not found');
   return c.json({ data: { id: identity.externalId, full_name: identity.displayName, role: identity.role, email: identity.email } });
 });
 
 authRoutes.put('/me', async (c) => {
   const user = c.get('user');
-  if (!isGuestId(user.id)) throw badRequest('บัญชีทดสอบแก้ข้อมูลไม่ได้');
+  if (!isGuestId(user.id)) throw badRequest('Demo accounts cannot be edited');
   const parsed = validateProfile(await readJson<{ name?: unknown; email?: unknown }>(c));
-  if (!parsed.ok) throw new ApiError(422, 'ValidationError', 'ข้อมูลไม่ครบหรือไม่ถูกต้อง', { fields: parsed.errors });
+  if (!parsed.ok) throw new ApiError(422, 'ValidationError', 'Some fields are missing or invalid', { fields: parsed.errors });
   const updated = await updateGuest(c.env.DB, user.id, parsed.value);
-  if (!updated) throw notFound('ไม่พบผู้ใช้');
+  if (!updated) throw notFound('User not found');
   return c.json({ message: 'Profile updated', data: shape(updated) });
 });

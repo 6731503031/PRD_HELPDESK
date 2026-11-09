@@ -21,7 +21,7 @@ export function StatusTrack({ status }: { status: TicketStatus }) {
   const current = STATUS_ORDER.indexOf(shown);
   const finished = shown === 'resolved';
   return (
-    <ol className="track" aria-label={`สถานะปัจจุบัน: ${STATUS_LABEL[shown]}`}>
+    <ol className="track" aria-label={`Current status: ${STATUS_LABEL[shown]}`}>
       {STATUS_ORDER.map((s, i) => {
         const done = i < current || (finished && i === current);
         return (
@@ -53,16 +53,16 @@ export function ErrorNotice({ error }: { error: unknown }) {
   if (!error) return null;
   if (error instanceof NotReadyError) {
     return (
-      <Notice tone="warn" title="ส่วนนี้ยังไม่เปิดใช้งาน">
+      <Notice tone="warn" title="This feature is not available yet">
         <p className="small">
-          {error.feature} อยู่ระหว่างพัฒนา{error.owner ? ` (ผู้รับผิดชอบ ${error.owner})` : ''}
+          {error.feature} is under development{error.owner ? ` (owner: ${error.owner})` : ''}
         </p>
       </Notice>
     );
   }
-  const message = error instanceof ApiError || error instanceof Error ? error.message : 'เกิดข้อผิดพลาด';
+  const message = error instanceof ApiError || error instanceof Error ? error.message : 'Something went wrong';
   return (
-    <Notice tone="error" title="ทำรายการไม่สำเร็จ">
+    <Notice tone="error" title="Action failed">
       <p>{message}</p>
     </Notice>
   );
@@ -75,7 +75,7 @@ export function ErrorNotice({ error }: { error: unknown }) {
  *   dashboard → number cards + list rows
  *   detail    → ticket workspace (main + side column)
  */
-export function Loading({ label = 'กำลังโหลด…', variant = 'text' }: { label?: string; variant?: 'text' | 'table' | 'dashboard' | 'detail' }) {
+export function Loading({ label = 'Loading…', variant = 'text' }: { label?: string; variant?: 'text' | 'table' | 'dashboard' | 'detail' }) {
   const lines = (n: number) =>
     Array.from({ length: n }, (_, i) => <span key={i} className="sk sk--line" style={{ width: `${92 - ((i * 17) % 40)}%` }} />);
   const rows = (n: number) =>

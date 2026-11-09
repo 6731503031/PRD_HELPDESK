@@ -55,36 +55,36 @@ export function Messages({ selectedId }: { selectedId?: number }) {
     if (!selectedId && sorted.length && wide()) window.location.replace(`#/chat/${sorted[0].id}`);
   }, [selectedId, sorted]);
 
-  const other = staff ? selected?.customer_name ?? 'ผู้แจ้ง' : 'ผู้ดูแล Helpdesk';
+  const other = staff ? selected?.customer_name ?? 'Requester' : 'Helpdesk team';
   const ticketHref = (id: number) => (staff ? `#/queue/${id}` : `#/my/${id}`);
 
   return (
     <div className={`msgs${listOpen ? '' : ' msgs--no-list'}${infoOpen ? '' : ' msgs--no-info'}${selectedId ? ' msgs--has-conv' : ''}`}>
       {/* Left: conversations */}
-      <aside className="msgs__list" aria-label="รายการบทสนทนา">
+      <aside className="msgs__list" aria-label="Conversations">
         <div className="msgs__listhead">
-          <h1 className="msgs__h">ข้อความ</h1>
-          <button className="icon-btn" onClick={() => setListOpen(false)} aria-label="ซ่อนรายการบทสนทนา" title="ซ่อนรายการ">
+          <h1 className="msgs__h">Messages</h1>
+          <button className="icon-btn" onClick={() => setListOpen(false)} aria-label="Hide conversations" title="Hide list">
             <Icon name="sidebar" />
           </button>
         </div>
         <label className="search msgs__search">
-          <span className="visually-hidden">ค้นหา</span>
+          <span className="visually-hidden">Search</span>
           <Icon name="search" size={16} />
-          <input className="input" placeholder={staff ? 'ค้นหาเลขที่ เรื่อง ผู้แจ้ง' : 'ค้นหาเลขที่ หรือเรื่อง'} value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input" placeholder={staff ? 'Search ticket, subject or requester' : 'Search ticket or subject'} value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
 
         <div className="msgs__filters">
-          <label className="visually-hidden" htmlFor="chat-f-status">สถานะ</label>
+          <label className="visually-hidden" htmlFor="chat-f-status">Status</label>
           <select id="chat-f-status" className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as TicketStatus | '')}>
-            <option value="">ทุกสถานะ</option>
+            <option value="">All statuses</option>
             {STATUS_ORDER.map((st) => (
               <option key={st} value={st}>{STATUS_LABEL[st]}</option>
             ))}
           </select>
-          <label className="visually-hidden" htmlFor="chat-f-priority">ความเร่งด่วน</label>
+          <label className="visually-hidden" htmlFor="chat-f-priority">Urgency</label>
           <select id="chat-f-priority" className="select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as Priority | '')}>
-            <option value="">ทุกระดับ</option>
+            <option value="">All urgencies</option>
             {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
             ))}
@@ -92,7 +92,7 @@ export function Messages({ selectedId }: { selectedId?: number }) {
         </div>
         {filtering && (
           <p className="msgs__count" aria-live="polite">
-            {rows.length} จาก {sorted.length} รายการ
+            {rows.length} of {sorted.length}
             <button
               type="button"
               className="btn btn--plain btn--small"
@@ -102,7 +102,7 @@ export function Messages({ selectedId }: { selectedId?: number }) {
                 setPriorityFilter('');
               }}
             >
-              ล้างตัวกรอง
+              Clear filters
             </button>
           </p>
         )}
@@ -114,8 +114,8 @@ export function Messages({ selectedId }: { selectedId?: number }) {
             <div className="msgs__pad"><ErrorNotice error={error} /></div>
           ) : rows.length === 0 ? (
             <div className="empty">
-              <p>{filtering ? 'ไม่พบบทสนทนาตามตัวกรอง' : staff ? 'ยังไม่มีคำร้อง' : 'คุณยังไม่มีคำร้อง'}</p>
-              {!staff && !filtering && <a className="btn" href="#/new">แจ้งปัญหาใหม่</a>}
+              <p>{filtering ? 'No conversations match the filters' : staff ? 'No tickets yet' : 'You have no tickets yet'}</p>
+              {!staff && !filtering && <a className="btn" href="#/new">Report an issue</a>}
             </div>
           ) : (
             rows.map((t) => (
@@ -136,23 +136,23 @@ export function Messages({ selectedId }: { selectedId?: number }) {
       </aside>
 
       {/* Centre: the conversation */}
-      <section className="thread" aria-label="บทสนทนา">
+      <section className="thread" aria-label="Conversation">
         {selected ? (
           <>
             <header className="thread__head">
               {!listOpen && (
-                <button className="icon-btn" onClick={() => setListOpen(true)} aria-label="แสดงรายการบทสนทนา" title="แสดงรายการ">
+                <button className="icon-btn" onClick={() => setListOpen(true)} aria-label="Show conversations" title="Show list">
                   <Icon name="sidebar" />
                 </button>
               )}
-              <a className="icon-btn thread__back" href="#/chat" aria-label="กลับไปรายการ"><Icon name="back" /></a>
+              <a className="icon-btn thread__back" href="#/chat" aria-label="Back to list"><Icon name="back" /></a>
               <Avatar name={staff ? other : 'Helpdesk'} size={38} />
               <div className="thread__title">
                 <strong>{selected.title}</strong>
                 <span className="muted small">{selected.ticket_number} · {other}</span>
               </div>
-              <a className="btn btn--secondary btn--small" href={ticketHref(selected.id)}>ดูคำร้อง</a>
-              <button className="icon-btn thread__infotoggle" onClick={() => setInfoOpen(!infoOpen)} aria-pressed={infoOpen} aria-label={infoOpen ? 'ซ่อนรายละเอียดคำร้อง' : 'แสดงรายละเอียดคำร้อง'} title="รายละเอียดคำร้อง">
+              <a className="btn btn--secondary btn--small" href={ticketHref(selected.id)}>View ticket</a>
+              <button className="icon-btn thread__infotoggle" onClick={() => setInfoOpen(!infoOpen)} aria-pressed={infoOpen} aria-label={infoOpen ? 'Hide ticket details' : 'Show ticket details'} title="Ticket details">
                 <Icon name="panelRight" />
               </button>
             </header>
@@ -162,20 +162,20 @@ export function Messages({ selectedId }: { selectedId?: number }) {
           <>
             <header className="thread__head">
               {!listOpen && (
-                <button className="icon-btn" onClick={() => setListOpen(true)} aria-label="แสดงรายการบทสนทนา" title="แสดงรายการ">
+                <button className="icon-btn" onClick={() => setListOpen(true)} aria-label="Show conversations" title="Show list">
                   <Icon name="sidebar" />
                 </button>
               )}
             </header>
             <div className="thread__blank">
               {selectedId && !loading ? (
-                <Notice tone="warn" title="ไม่พบคำร้องนี้">
-                  <p className="small">อาจไม่ใช่คำร้องของคุณ หรือถูกลบไปแล้ว</p>
+                <Notice tone="warn" title="Ticket not found">
+                  <p className="small">It may not be your ticket, or it has been deleted.</p>
                 </Notice>
               ) : (
                 <>
                   <Icon name="chat" size={40} />
-                  <p>เลือกบทสนทนาทางซ้ายเพื่อเริ่มคุย</p>
+                  <p>Select a conversation on the left to start.</p>
                 </>
               )}
             </div>
@@ -184,7 +184,7 @@ export function Messages({ selectedId }: { selectedId?: number }) {
       </section>
 
       {/* Right: ticket details */}
-      <aside className="msgs__info" aria-label="รายละเอียดคำร้อง">
+      <aside className="msgs__info" aria-label="Ticket details">
         {selected && (
           <>
             <div>
@@ -193,19 +193,19 @@ export function Messages({ selectedId }: { selectedId?: number }) {
               <div className="inline mt-2"><StatusBadge status={selected.status} /><PriorityText priority={selected.priority} /></div>
             </div>
             <dl className="meta">
-              <dt>หมวดหมู่</dt>
+              <dt>Category</dt>
               <dd><span className="chip">{selected.category_name ?? '–'}</span></dd>
-              <dt>ผู้แจ้ง</dt>
+              <dt>Requester</dt>
               <dd className="person"><Avatar name={selected.customer_name} size={22} /> {selected.customer_name ?? `#${selected.customer_id}`}</dd>
-              <dt>แจ้งเมื่อ</dt>
+              <dt>Reported</dt>
               <dd>{formatDateTime(selected.created_at)}</dd>
             </dl>
             {selected.maintenance_work_order_id && (
-              <Notice tone="info" title={`ใบงานซ่อม ${selected.maintenance_work_order_id}`}>
+              <Notice tone="info" title={`Work order ${selected.maintenance_work_order_id}`}>
                 <p className="small">{maintenanceLabel(selected.maintenance_status)}</p>
               </Notice>
             )}
-            <a className="btn btn--secondary" href={ticketHref(selected.id)}>เปิดหน้าคำร้อง</a>
+            <a className="btn btn--secondary" href={ticketHref(selected.id)}>Open ticket page</a>
           </>
         )}
       </aside>

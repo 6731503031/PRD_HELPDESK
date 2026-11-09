@@ -22,7 +22,7 @@ export function Admin() {
     setResult(null);
     try {
       await api.addCategory(name.trim(), description.trim());
-      setResult({ ok: true, text: `เพิ่มหมวด ${name.trim()} แล้ว` });
+      setResult({ ok: true, text: `Category ${name.trim()} added` });
       setName('');
       setDescription('');
       void cats.reload();
@@ -37,7 +37,7 @@ export function Admin() {
     setResult(null);
     try {
       await api.setCategoryActive(id, active);
-      setResult({ ok: true, text: active ? 'เปิดใช้หมวดหมู่แล้ว' : 'ปิดใช้หมวดหมู่แล้ว' });
+      setResult({ ok: true, text: active ? 'Category enabled' : 'Category disabled' });
       void cats.reload();
     } catch (err) {
       setResult({ ok: false, error: err });
@@ -47,11 +47,11 @@ export function Admin() {
   return (
     <div className="page">
       <div className="page__head">
-        <h1>จัดการหมวดหมู่</h1>
-        <p>หมวดหมู่ที่ผู้แจ้งเลือกได้ตอนแจ้งปัญหา เพิ่มใหม่หรือปิดใช้หมวดที่ไม่ใช้แล้ว</p>
+        <h1>Categories</h1>
+        <p>The categories requesters can choose when reporting an issue. Add new ones or disable those no longer used.</p>
       </div>
 
-      <Panel title="จำนวนคำร้อง">
+      <Panel title="Ticket counts">
         {stats.loading && !stats.data ? (
           <Loading />
         ) : stats.error ? (
@@ -59,7 +59,7 @@ export function Admin() {
         ) : stats.data ? (
           <div className="layout-split">
             <div>
-              <h3>ตามสถานะ</h3>
+              <h3>By status</h3>
               <table className="table table--static mt-2">
                 <tbody>
                   {(Object.keys(STATUS_LABEL) as TicketStatus[]).map((s) => (
@@ -72,7 +72,7 @@ export function Admin() {
               </table>
             </div>
             <div>
-              <h3>ตามความเร่งด่วน</h3>
+              <h3>By urgency</h3>
               <table className="table table--static mt-2">
                 <tbody>
                   {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
@@ -83,13 +83,13 @@ export function Admin() {
                   ))}
                 </tbody>
               </table>
-              <p className="muted mt-2">รวมทั้งหมด {stats.data.total} คำร้อง</p>
+              <p className="muted mt-2">{stats.data.total} tickets in total</p>
             </div>
           </div>
         ) : null}
       </Panel>
 
-      <Panel title="หมวดหมู่">
+      <Panel title="Categories">
         <div aria-live="polite">
           {result?.ok && <Notice tone="ok" title={result.text} />}
           {result && !result.ok && <ErrorNotice error={result.error} />}
@@ -102,13 +102,13 @@ export function Admin() {
         ) : (
           <div className={`table-wrap${result ? ' mt-4' : ''}`}>
             <table className="table table--static">
-              <caption className="visually-hidden">หมวดหมู่ทั้งหมด</caption>
+              <caption className="visually-hidden">All categories</caption>
               <thead>
                 <tr>
-                  <th scope="col">ชื่อ</th>
-                  <th scope="col">คำอธิบาย</th>
-                  <th scope="col">สถานะ</th>
-                  <th scope="col"><span className="visually-hidden">การจัดการ</span></th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Description</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span className="visually-hidden">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -116,10 +116,10 @@ export function Admin() {
                   <tr key={c.id}>
                     <td>{c.name}</td>
                     <td className="muted">{c.description ?? '–'}</td>
-                    <td>{c.is_active ? 'เปิดใช้' : <span className="muted">ปิดใช้</span>}</td>
+                    <td>{c.is_active ? 'Active' : <span className="muted">Disabled</span>}</td>
                     <td className="cell-end">
                       <button className="btn btn--plain btn--small" onClick={() => toggle(c.id, !c.is_active)}>
-                        {c.is_active ? 'ปิดใช้' : 'เปิดใช้'}
+                        {c.is_active ? 'Disable' : 'Enable'}
                       </button>
                     </td>
                   </tr>
@@ -130,16 +130,16 @@ export function Admin() {
         )}
 
         <form className="form form--narrow mt-5" onSubmit={add}>
-          <h3>เพิ่มหมวดหมู่</h3>
-          <Field id="cat-name" label="ชื่อหมวดหมู่" required>
+          <h3>Add a category</h3>
+          <Field id="cat-name" label="Category name" required>
             <input id="cat-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} />
           </Field>
-          <Field id="cat-desc" label="คำอธิบาย" hint="ช่วยให้ผู้แจ้งเลือกหมวดได้ถูก">
+          <Field id="cat-desc" label="Description" hint="Helps requesters choose the right category">
             <input id="cat-desc" className="input" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} />
           </Field>
           <div className="form-actions">
             <button className="btn" type="submit" disabled={saving || name.trim().length < 2}>
-              {saving ? 'กำลังเพิ่ม…' : 'เพิ่มหมวดหมู่'}
+              {saving ? 'Adding…' : 'Add category'}
             </button>
           </div>
         </form>

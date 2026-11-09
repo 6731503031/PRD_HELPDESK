@@ -67,12 +67,12 @@ export function validateCreate(
   const categoryId = Number(body.category_id);
   const priority = String(body.urgency ?? body.priority ?? '').trim();
 
-  if (title.length < 5) errors.subject = 'กรุณากรอกหัวเรื่องอย่างน้อย 5 ตัวอักษร';
-  if (title.length > 150) errors.subject = 'หัวเรื่องยาวเกิน 150 ตัวอักษร';
-  if (description.length < 10) errors.description = 'กรุณาอธิบายปัญหาอย่างน้อย 10 ตัวอักษร';
-  if (description.length > 5000) errors.description = 'รายละเอียดยาวเกิน 5,000 ตัวอักษร';
-  if (!Number.isInteger(categoryId) || categoryId <= 0) errors.category_id = 'กรุณาเลือกหมวดหมู่';
-  if (!PRIORITIES.includes(priority as Priority)) errors.urgency = 'กรุณาเลือกระดับความเร่งด่วน';
+  if (title.length < 5) errors.subject = 'Please enter a subject of at least 5 characters';
+  if (title.length > 150) errors.subject = 'Subject must be 150 characters or fewer';
+  if (description.length < 10) errors.description = 'Please describe the problem in at least 10 characters';
+  if (description.length > 5000) errors.description = 'Description must be 5,000 characters or fewer';
+  if (!Number.isInteger(categoryId) || categoryId <= 0) errors.category_id = 'Please select a category';
+  if (!PRIORITIES.includes(priority as Priority)) errors.urgency = 'Please select an urgency';
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
@@ -106,9 +106,9 @@ export function editableFields(role: Role): string[] {
 
 /** FR-13: only staff can resolve, and not twice. */
 export function canResolve(user: AuthUser, ticket: Pick<Ticket, 'status'>): { ok: boolean; reason?: string } {
-  if (!isStaff(user.role)) return { ok: false, reason: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ปิดงานได้' };
+  if (!isStaff(user.role)) return { ok: false, reason: 'Only administrators can resolve tickets' };
   if (ticket.status === 'resolved' || ticket.status === 'closed') {
-    return { ok: false, reason: 'ticket นี้ปิดไปแล้ว' };
+    return { ok: false, reason: 'This ticket is already resolved' };
   }
   return { ok: true };
 }

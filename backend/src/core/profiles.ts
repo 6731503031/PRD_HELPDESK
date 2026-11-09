@@ -22,9 +22,9 @@ export function validateProfile(
   const name = typeof input.name === 'string' ? input.name.trim() : '';
   const rawEmail = typeof input.email === 'string' ? input.email.trim() : '';
 
-  if (name.length < 2) errors.name = 'กรุณากรอกชื่ออย่างน้อย 2 ตัวอักษร';
-  else if (name.length > 60) errors.name = 'ชื่อยาวเกิน 60 ตัวอักษร';
-  if (rawEmail && (rawEmail.length > 120 || !EMAIL.test(rawEmail))) errors.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+  if (name.length < 2) errors.name = 'Please enter a name of at least 2 characters';
+  else if (name.length > 60) errors.name = 'Name must be 60 characters or fewer';
+  if (rawEmail && (rawEmail.length > 120 || !EMAIL.test(rawEmail))) errors.email = 'Invalid email address';
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return { ok: true, value: { name, email: rawEmail || null } };
