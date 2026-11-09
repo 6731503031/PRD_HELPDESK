@@ -6,6 +6,29 @@ import { describe, expect, it } from 'vitest';
 import { validateContent } from '../src/modules/comments/rules';
 import { validateProfile } from '../src/core/profiles';
 import { GUEST_ID_MIN, isGuestId, verify } from '../src/core/identity';
+import { MESSAGES, SYSTEM_AUTHOR_ID, repairMessage } from '../src/modules/comments/templates';
+
+describe('automatic chat messages (templates.ts)', () => {
+  it('the system author is no real user or guest', () => {
+    expect(verify(SYSTEM_AUTHOR_ID)).toBeNull();
+    expect(isGuestId(SYSTEM_AUTHOR_ID)).toBe(false);
+  });
+  it('announces repair progress once per stage', () => {
+    expect(repairMessage('reported', 'in_progress')).toBe(MESSAGES.repairStarted);
+    expect(repairMessage('in_progress', 'in_progress')).toBeNull();
+    expect(repairMessage('in_progress', 'completed')).toBe(MESSAGES.repairDone);
+    expect(repairMessage('completed', 'closed')).toBeNull(); // both mean "done"
+    expect(repairMessage('assigned', 'cancelled')).toBe(MESSAGES.repairCancelled);
+  });
+  it('stays quiet for reported / assigned (the "sent" message already said it)', () => {
+    expect(repairMessage(null, 'reported')).toBeNull();
+    expect(repairMessage('reported', 'assigned')).toBeNull();
+  });
+  it('the resolve message carries the summary when there is one', () => {
+    expect(MESSAGES.resolved('Replaced the compressor')).toContain('Replaced the compressor');
+    expect(MESSAGES.resolved(null)).toBe('ปิดคำร้องแล้ว');
+  });
+});
 
 describe('#4 Comment (FR-11)', () => {
   it('rejects empty and whitespace-only text', () => {

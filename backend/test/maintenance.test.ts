@@ -2,11 +2,11 @@
  * PRD §18 required test #6 Maintenance link + recommended "webhook verification", "duplicate event"
  * Owner: P3
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hmacHex, safeEqual, verifyWebhook } from '../src/modules/maintenance/signature';
 import { mapWorkOrderStatus, nextTicketStatus } from '../src/modules/maintenance/mapping';
-import { parseWebhookEvent, validateWorkOrderId } from '../src/modules/maintenance/envelope';
-import { fetchWorkOrder } from '../src/modules/maintenance/client';
+import { parseWebhookEvent, validateRepairRequest, validateWorkOrderId } from '../src/modules/maintenance/envelope';
+import { createWorkOrder, fetchWorkOrder } from '../src/modules/maintenance/client';
 
 describe('HMAC helper', () => {
   it('matches the standard HMAC-SHA256 test vector', async () => {
@@ -129,5 +129,87 @@ describe('Team 10 client without a URL (F13, no network)', () => {
   it('says unavailable for a real id when nothing is configured, and outside development', async () => {
     expect((await fetchWorkOrder(env({}), 'WO-0045', 'c1')).kind).toBe('unavailable');
     expect((await fetchWorkOrder(env({ ENVIRONMENT: 'production' }), 'WO-MOCK-1', 'c1')).kind).toBe('unavailable');
+  });
+});
+
+describe('repair text the admin sends to Team 10', () => {
+  const ticket = { title: 'Air conditioner in B-204', description: 'It does not cool at all.' };
+  it('falls back to the ticket text and trims what the admin typed', () => {
+    expect(validateRepairRequest({}, ticket)).toEqual({ ok: true, ...ticket });
+    expect(validateRepairRequest({ title: '  Aircon B-204  ', description: ' No cold air ' }, ticket)).toEqual({
+      ok: true,
+      title: 'Aircon B-204',
+      description: 'No cold air',
+    });
+  });
+  it('rejects empty or too long text', () => {
+    expect(validateRepairRequest({ title: ' ' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ description: 'x' }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ title: 'x'.repeat(151) }, ticket).ok).toBe(false);
+    expect(validateRepairRequest({ description: 'x'.repeat(5001) }, ticket).ok).toBe(false);
+  });
+});
+
+describe('Team 10 client: create a work order (POST /work-orders)', () => {
+  const input = { ticketRef: 'TKT-00012', title: 'Aircon B-204', description: 'No cold air' };
+  const env = (over: object = {}) =>
+    ({ ENVIRONMENT: 'production', MAINTENANCE_API_URL: 'https://t10.test/api/v1/', MAINTENANCE_API_KEY: 'k1', ...over }) as never;
+  const reply = (status: number, body: unknown) =>
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+  afterEach(() => vi.restoreAllMocks());
+
+  it('in development without a URL, answers a mock work order the lookup also knows', async () => {
+    const devEnv = { ENVIRONMENT: 'development', MAINTENANCE_API_URL: '' } as never;
+    const r = await createWorkOrder(devEnv, input, 'c1');
+    expect(r.kind).toBe('created');
+    if (r.kind !== 'created') return;
+    expect(r.workOrder.id.startsWith('WO-MOCK-')).toBe(true);
+    expect(validateWorkOrderId(r.workOrder.id).ok).toBe(true);
+    expect((await fetchWorkOrder(devEnv, r.workOrder.id, 'c1')).kind).toBe('found');
+  });
+  it('without a URL outside development: unavailable, no call made', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch');
+    expect((await createWorkOrder(env({ MAINTENANCE_API_URL: '' }), input, 'c1')).kind).toBe('unavailable');
+    expect(spy).not.toHaveBeenCalled();
+  });
+  it('POSTs the three fields with the agreed headers, and reads {data:{id,status}}', async () => {
+    const spy = reply(201, { data: { id: '7f3c2a9e-1b4d-4c8e-9a21-5d6e7f8a9b01', status: 'reported', ticketRef: 'TKT-00012' } });
+    const r = await createWorkOrder(env(), input, 'corr-1');
+    expect(r).toEqual({ kind: 'created', workOrder: { id: '7f3c2a9e-1b4d-4c8e-9a21-5d6e7f8a9b01', status: 'reported' } });
+    const [url, init] = spy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://t10.test/api/v1/work-orders');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual(input);
+    const h = init.headers as Record<string, string>;
+    expect(h.Authorization).toBe('Bearer k1');
+    expect(h['X-Correlation-Id']).toBe('corr-1');
+  });
+  it('accepts 200 (Team 10 already has one for this ticketRef) and a bare object', async () => {
+    reply(200, { id: 'wo-1', status: 'in_progress' });
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'created', workOrder: { id: 'wo-1', status: 'in_progress' } });
+  });
+  it('no POST endpoint at Team 10 (404/405): unavailable with a clear reason, not a rejection', async () => {
+    reply(404, { error: { code: 'NOT_FOUND', message: 'Not found' } });
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'unavailable', reason: 'create not supported' });
+    vi.restoreAllMocks();
+    reply(405, {});
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'unavailable', reason: 'create not supported' });
+  });
+  it("passes Team 10's 400 message on to the admin", async () => {
+    reply(400, { error: { code: 'VALIDATION', message: 'title is required' } });
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'rejected', message: 'title is required' });
+  });
+  it('a wrong credential, a server error, an odd body or a timeout: unavailable', async () => {
+    reply(401, {});
+    expect((await createWorkOrder(env(), input, 'c1')).kind).toBe('unavailable');
+    vi.restoreAllMocks();
+    reply(500, {});
+    expect((await createWorkOrder(env(), input, 'c1')).kind).toBe('unavailable');
+    vi.restoreAllMocks();
+    reply(201, { data: { status: 'reported' } });
+    expect((await createWorkOrder(env(), input, 'c1')).kind).toBe('unavailable');
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'unavailable', reason: 'TimeoutError' });
   });
 });

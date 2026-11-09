@@ -24,17 +24,21 @@ import { badRequest, forbidden, notFound, parseId, readJson } from '../../core/h
 import { getTicket } from '../tickets/repo';
 import { canViewTicket } from '../tickets/rules';
 import { validateContent, type Comment } from './rules';
+import { SYSTEM_AUTHOR_ID, SYSTEM_AUTHOR_NAME } from './templates';
 
 export const commentRoutes = new Hono<AppEnv>();
 
-/** Adds author name + role (directory or guest profile). Guests are always requesters. */
+/**
+ * Adds author name + role (directory or guest profile). Guests are always requesters.
+ * Automatic messages (author 0, see templates.ts) come back with role 'system'.
+ */
 async function withAuthors(db: D1Database, rows: Comment[]) {
-  const names = await displayNames(db, rows.map((r) => r.author_id));
-  return rows.map((r) => ({
-    ...r,
-    author_name: names.get(r.author_id) ?? null,
-    author_role: verify(r.author_id)?.role ?? 'customer',
-  }));
+  const names = await displayNames(db, rows.map((r) => r.author_id).filter((id) => id !== SYSTEM_AUTHOR_ID));
+  return rows.map((r) =>
+    r.author_id === SYSTEM_AUTHOR_ID
+      ? { ...r, author_name: SYSTEM_AUTHOR_NAME, author_role: 'system' }
+      : { ...r, author_name: names.get(r.author_id) ?? null, author_role: verify(r.author_id)?.role ?? 'customer' },
+  );
 }
 
 /** Same rule as viewing the ticket: requester sees own tickets, admin sees all (FR-07). */
