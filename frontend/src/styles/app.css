@@ -675,6 +675,16 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .thread__empty { margin: auto; color: var(--muted); text-align: center; }
 .day { text-align: center; font-size: 0.75rem; color: var(--muted); margin: var(--s4) 0 var(--s3); }
 
+/* Automatic message (system): a grey pill in the middle, not anyone's bubble */
+.sysmsg {
+  display: flex; align-items: flex-start; justify-content: center; gap: var(--s2);
+  max-width: 88%; margin: var(--s3) auto; padding: 6px var(--s3);
+  background: var(--subtle); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--muted); font-size: 0.82rem; line-height: 1.45; text-align: left;
+}
+.sysmsg svg { flex: none; margin-top: 2px; color: var(--brand); }
+.sysmsg time { flex: none; font-size: 0.72rem; opacity: 0.8; }
+
 /* Messenger-style bubbles: mine right + blue, theirs left + grey, bursts share rounded corners */
 .mx { display: flex; align-items: flex-end; gap: var(--s2); max-width: 78%; margin-top: 2px; }
 .mx--mine { margin-left: auto; flex-direction: row-reverse; }
