@@ -44,15 +44,15 @@ export function App() {
 
   const nav: { href: string; label: string; icon: IconName }[] = staff
     ? [
-        { href: '/queue', label: 'แดชบอร์ด', icon: 'dashboard' },
-        { href: '/chat', label: 'ข้อความ', icon: 'chat' },
-        { href: '/admin', label: 'จัดการหมวดหมู่', icon: 'settings' },
+        { href: '/queue', label: 'Dashboard', icon: 'dashboard' },
+        { href: '/chat', label: 'Messages', icon: 'chat' },
+        { href: '/admin', label: 'Categories', icon: 'settings' },
       ]
     : [
-        { href: '/new', label: 'แจ้งปัญหาใหม่', icon: 'plus' },
-        { href: '/my', label: 'คำร้องของฉัน', icon: 'ticket' },
-        { href: '/chat', label: 'ข้อความ', icon: 'chat' },
-        { href: '/profile', label: 'ข้อมูลของฉัน', icon: 'user' },
+        { href: '/new', label: 'Report an issue', icon: 'plus' },
+        { href: '/my', label: 'My tickets', icon: 'ticket' },
+        { href: '/chat', label: 'Messages', icon: 'chat' },
+        { href: '/profile', label: 'My profile', icon: 'user' },
       ];
 
   let page = null;
@@ -69,7 +69,7 @@ export function App() {
 
   const skip = (
     <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>
-      ข้ามไปยังเนื้อหา
+      Skip to content
     </a>
   );
 
@@ -101,8 +101,8 @@ export function App() {
               className="icon-btn sidebar-toggle"
               onClick={() => setNavOpen(!navOpen)}
               aria-expanded={navOpen}
-              aria-label={navOpen ? 'ย่อเมนู' : 'ขยายเมนู'}
-              title={navOpen ? 'ย่อเมนู' : 'ขยายเมนู'}
+              aria-label={navOpen ? 'Collapse menu' : 'Expand menu'}
+              title={navOpen ? 'Collapse menu' : 'Expand menu'}
             >
               <Icon name="sidebar" />
             </button>
@@ -118,7 +118,7 @@ export function App() {
             </div>
           )}
 
-          <nav className="side-nav" aria-label="เมนูหลัก">
+          <nav className="side-nav" aria-label="Main menu">
             {user &&
               nav.map((n) => (
                 <a key={n.href} href={`#${n.href}`} title={n.label} aria-current={path.startsWith(n.href) ? 'page' : undefined}>
@@ -130,9 +130,9 @@ export function App() {
 
           {user && (
             <div className="sidebar__foot">
-              <button className="side-out" onClick={signOut} title="ออกจากระบบ">
+              <button className="side-out" onClick={signOut} title="Sign out">
                 <Icon name="logout" />
-                <span className="side-label">ออกจากระบบ</span>
+                <span className="side-label">Sign out</span>
               </button>
               <p className="sidebar__credit">Student Support Pod, Team 14</p>
             </div>
@@ -142,7 +142,7 @@ export function App() {
         <main id="main" className="main" tabIndex={-1}>
           {error ? (
             <div className="page">
-              <Notice tone="error" title="เชื่อมต่อระบบไม่ได้">
+              <Notice tone="error" title="Cannot connect to the system">
                 <p>{error}</p>
               </Notice>
             </div>

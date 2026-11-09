@@ -103,7 +103,7 @@ describe('work order id typed by the admin', () => {
     expect(validateWorkOrderId('WO 45/../x').ok).toBe(false);
     const own = validateWorkOrderId('TKT-00034');
     expect(own.ok).toBe(false);
-    expect(!own.ok && own.message).toContain('เลขคำร้องของเรา');
+    expect(!own.ok && own.message).toContain('our own ticket number');
   });
 });
 

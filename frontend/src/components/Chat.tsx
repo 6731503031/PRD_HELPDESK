@@ -85,13 +85,13 @@ export function Chat({ ticketId }: { ticketId: number }) {
 
   return (
     <div className="chatbox">
-      <div className="thread__log" ref={logRef} aria-live="polite" aria-label="ข้อความ">
+      <div className="thread__log" ref={logRef} aria-live="polite" aria-label="Messages">
         {loading && !data ? (
-          <Loading variant="text" label="กำลังโหลดข้อความ…" />
+          <Loading variant="text" label="Loading messages…" />
         ) : error ? (
           <ErrorNotice error={error} />
         ) : rows.length === 0 ? (
-          <p className="thread__empty">ยังไม่มีข้อความ ส่งข้อความแรกเพื่อเริ่มคุยได้เลย</p>
+          <p className="thread__empty">No messages yet. Send the first one to start the conversation.</p>
         ) : (
           rows.map(({ c, mine, first, last, day }) => (
             <div key={c.id} className="burst">
@@ -120,13 +120,13 @@ export function Chat({ ticketId }: { ticketId: number }) {
       {sendError ? <div className="thread__note"><ErrorNotice error={sendError} /></div> : null}
 
       <form className="composer" onSubmit={send}>
-        <label className="visually-hidden" htmlFor={`msg-${ticketId}`}>พิมพ์ข้อความ</label>
+        <label className="visually-hidden" htmlFor={`msg-${ticketId}`}>Type a message</label>
         <textarea
           id={`msg-${ticketId}`}
           ref={inputRef}
           className="composer__input"
           rows={1}
-          placeholder="พิมพ์ข้อความ…"
+          placeholder="Type a message…"
           value={text}
           maxLength={2000}
           onChange={(e) => {
@@ -140,7 +140,7 @@ export function Chat({ ticketId }: { ticketId: number }) {
             }
           }}
         />
-        <button className="composer__send" type="submit" disabled={sending || !text.trim()} aria-label="ส่งข้อความ">
+        <button className="composer__send" type="submit" disabled={sending || !text.trim()} aria-label="Send message">
           <Icon name="send" size={18} />
         </button>
       </form>

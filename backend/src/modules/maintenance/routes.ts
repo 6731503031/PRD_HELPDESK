@@ -34,13 +34,13 @@ const hasActiveWorkOrder = (t: { maintenance_work_order_id: string | null; maint
  * the repair. Open tickets are refused (the UI keeps step ② locked until then); finished tickets too.
  */
 function assertReadyForRepair(t: { status: string; maintenance_work_order_id: string | null; maintenance_status: string | null }) {
-  if (t.status === 'resolved' || t.status === 'closed') throw conflict('คำร้องนี้ปิดแล้ว ส่งต่อฝ่ายซ่อมบำรุงไม่ได้');
-  if (t.status === 'open') throw conflict('กด "เริ่มดำเนินการ" ในขั้นที่ 1 ก่อน แล้วจึงส่งต่อฝ่ายซ่อมบำรุง');
-  if (hasActiveWorkOrder(t)) throw conflict(`คำร้องนี้ผูกกับใบงาน ${t.maintenance_work_order_id} อยู่แล้ว`);
+  if (t.status === 'resolved' || t.status === 'closed') throw conflict('This ticket is resolved and cannot be sent to Maintenance');
+  if (t.status === 'open') throw conflict('Press "Start work" in step 1 before sending to Maintenance');
+  if (hasActiveWorkOrder(t)) throw conflict(`This ticket is already linked to work order ${t.maintenance_work_order_id}`);
 }
 
 const nowSql = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
-const TEAM10_DOWN = 'เชื่อมต่อระบบ Team 10 ไม่ได้ ลองใหม่ภายหลัง (ส่วนอื่นของ Helpdesk ใช้งานได้ตามปกติ)';
+const TEAM10_DOWN = 'Cannot reach Team 10. Please try again later (the rest of Helpdesk works as usual).';
 
 // ---------- F13 Send (main way): Helpdesk creates the work order at Team 10 and links it ----------
 maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), async (c) => {
@@ -48,7 +48,7 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
   const body = await readJson<{ title?: unknown; description?: unknown; location?: unknown; category?: unknown }>(c);
 
   const ticket = await getTicket(c.env.DB, parseId(c.req.param('id')));
-  if (!ticket) throw notFound('ไม่พบคำร้อง');
+  if (!ticket) throw notFound('Ticket not found');
   assertReadyForRepair(ticket);
 
   const repair = validateRepairRequest(body, { title: ticket.title, description: ticket.description });
@@ -66,12 +66,12 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
     },
     c.get('correlationId'),
   );
-  if (sent.kind === 'rejected') throw badRequest(`Team 10 ไม่รับคำขอ: ${sent.message}`);
+  if (sent.kind === 'rejected') throw badRequest(`Team 10 rejected the request: ${sent.message}`);
   if (sent.kind === 'unavailable') {
     console.warn(JSON.stringify({ level: 'warn', msg: 'maintenance create failed', reason: sent.reason, ticket: ticket.ticket_number }));
     const message =
       sent.reason === CREATE_NOT_SUPPORTED
-        ? 'Team 10 ยังไม่เปิดรับงานจาก Helpdesk ให้แจ้งซ่อมในระบบของ Team 10 แล้วใช้ "ผูกเลขใบงานเอง" ในขั้นที่ 2'
+        ? 'Team 10 does not accept requests from Helpdesk yet. Report the repair in Team 10\'s system, then use "Link a work order manually" in step 2.'
         : TEAM10_DOWN;
     throw new ApiError(503, 'ServiceUnavailable', message, { reason: sent.reason });
   }
@@ -79,19 +79,19 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
   const id = validateWorkOrderId(sent.workOrder.id);
   if (!id.ok) {
     console.warn(JSON.stringify({ level: 'warn', msg: 'maintenance create: odd work order id', ticket: ticket.ticket_number }));
-    throw new ApiError(503, 'ServiceUnavailable', 'Team 10 ตอบเลขใบงานที่ใช้ไม่ได้ กรุณาแจ้งทีม', { reason: 'bad id' });
+    throw new ApiError(503, 'ServiceUnavailable', 'Team 10 returned an invalid work order number. Please contact the team.', { reason: 'bad id' });
   }
   const other = await c.env.DB.prepare('SELECT ticket_number FROM tickets WHERE maintenance_work_order_id = ? AND id != ?')
     .bind(id.id, ticket.id)
     .first<{ ticket_number: string }>();
-  if (other) throw conflict(`Team 10 ตอบใบงาน ${id.id} ซึ่งผูกกับคำร้อง ${other.ticket_number} อยู่แล้ว`);
+  if (other) throw conflict(`Team 10 returned work order ${id.id}, which is already linked to ${other.ticket_number}`);
 
   await updateTicket(c.env.DB, ticket.id, {
     maintenance_work_order_id: id.id,
     maintenance_status: sent.workOrder.status,
     maintenance_status_at: nowSql(),
   });
-  await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `ส่งแจ้งซ่อมให้ Team 10 ได้ใบงาน ${id.id}`);
+  await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `Sent to Team 10, work order ${id.id}`);
   await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: id.id });
   await postSystemMessage(c.env.DB, ticket.id, MESSAGES.sentToMaintenance);
 
@@ -109,17 +109,17 @@ maintenanceRoutes.post('/tickets/:id/link-maintenance', requireRole('admin'), as
   if (!checked.ok) throw badRequest(checked.message);
 
   const ticket = await getTicket(c.env.DB, parseId(c.req.param('id')));
-  if (!ticket) throw notFound('ไม่พบคำร้อง');
+  if (!ticket) throw notFound('Ticket not found');
   assertReadyForRepair(ticket);
 
   const other = await c.env.DB.prepare('SELECT ticket_number FROM tickets WHERE maintenance_work_order_id = ? AND id != ?')
     .bind(checked.id, ticket.id)
     .first<{ ticket_number: string }>();
-  if (other) throw conflict(`ใบงาน ${checked.id} ผูกกับคำร้อง ${other.ticket_number} อยู่แล้ว`);
+  if (other) throw conflict(`Work order ${checked.id} is already linked to ${other.ticket_number}`);
 
   // Ask Team 10 whether it exists (3 s timeout). They being down must not break anything else in Helpdesk.
   const found = await fetchWorkOrder(c.env, checked.id, c.get('correlationId'));
-  if (found.kind === 'not_found') throw badRequest(`ไม่พบใบงาน ${checked.id} ในระบบ Team 10`);
+  if (found.kind === 'not_found') throw badRequest(`Work order ${checked.id} was not found in Team 10's system`);
   if (found.kind === 'unavailable') {
     console.warn(JSON.stringify({ level: 'warn', msg: 'maintenance lookup failed', reason: found.reason, workOrderId: checked.id }));
     throw new ApiError(503, 'ServiceUnavailable', TEAM10_DOWN, { reason: found.reason });
@@ -130,7 +130,7 @@ maintenanceRoutes.post('/tickets/:id/link-maintenance', requireRole('admin'), as
     maintenance_status: found.workOrder.status,
     maintenance_status_at: nowSql(),
   });
-  await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `ผูกใบงานซ่อม ${checked.id}`);
+  await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `Linked work order ${checked.id}`);
   await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: checked.id });
   await postSystemMessage(c.env.DB, ticket.id, MESSAGES.sentToMaintenance);
 
@@ -153,22 +153,22 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
     now: new Date(),
   });
   if (!verdict.ok) {
-    if (verdict.reason === 'not configured') throw new ApiError(503, 'ServiceUnavailable', 'ฝั่ง Helpdesk ยังไม่ได้ตั้งค่า secret สำหรับ webhook');
-    throw new ApiError(401, 'Unauthorized', `ลายเซ็นไม่ถูกต้อง (${verdict.reason})`);
+    if (verdict.reason === 'not configured') throw new ApiError(503, 'ServiceUnavailable', 'The Helpdesk webhook secret is not configured');
+    throw new ApiError(401, 'Unauthorized', `Invalid signature (${verdict.reason})`);
   }
 
   let body: unknown;
   try {
     body = JSON.parse(rawBody);
   } catch {
-    throw badRequest('ซองข้อมูลไม่ใช่ JSON');
+    throw badRequest('Body is not valid JSON');
   }
   const parsed = parseWebhookEvent(body);
   if (!parsed.ok) throw badRequest(parsed.message);
   const { eventId, type, workOrderId, status } = parsed.event;
 
   const effect = mapWorkOrderStatus(status);
-  if (!effect) throw badRequest(`ไม่รู้จักสถานะ ${status}`);
+  if (!effect) throw badRequest(`Unknown status ${status}`);
 
   // Idempotency: an event we already applied changes nothing and is answered 200.
   const seen = await c.env.DB.prepare('SELECT 1 AS x FROM processed_events WHERE event_id = ?').bind(eventId).first();

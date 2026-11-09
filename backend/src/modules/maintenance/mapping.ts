@@ -28,14 +28,14 @@ export function mapWorkOrderStatus(status: string): MaintenanceEffect | null {
   switch (status) {
     case 'reported':
     case 'assigned':
-      return { ticketStatus: null, label: 'ส่งต่อฝ่ายซ่อมบำรุงแล้ว' };
+      return { ticketStatus: null, label: 'Sent to Maintenance' };
     case 'in_progress':
-      return { ticketStatus: 'in_progress', label: 'ช่างกำลังดำเนินการ' };
+      return { ticketStatus: 'in_progress', label: 'Technician working on it' };
     case 'completed':
     case 'closed':
-      return { ticketStatus: null, label: 'ซ่อมเสร็จแล้ว — รอผู้ดูแลยืนยัน' };
+      return { ticketStatus: null, label: 'Repair done, awaiting admin confirmation' };
     case 'cancelled':
-      return { ticketStatus: 'in_progress', label: 'ฝ่ายซ่อมบำรุงยกเลิกใบงาน' };
+      return { ticketStatus: 'in_progress', label: 'Work order cancelled by Maintenance' };
     default:
       return null;
   }

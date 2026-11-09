@@ -27,7 +27,7 @@ export async function fetchWorkOrder(env: Bindings, id: string, correlationId: s
   const base = (env.MAINTENANCE_API_URL ?? '').trim().replace(/\/+$/, '');
   if (!base) {
     if (env.ENVIRONMENT === 'development' && id.startsWith(MOCK_PREFIX)) {
-      return { kind: 'found', workOrder: { id, title: '(ใบงานจำลอง)', location: '-', status: 'reported' } };
+      return { kind: 'found', workOrder: { id, title: '(mock work order)', location: '-', status: 'reported' } };
     }
     return { kind: 'unavailable', reason: 'not configured' };
   }

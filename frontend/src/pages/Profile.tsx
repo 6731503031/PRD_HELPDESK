@@ -37,26 +37,26 @@ export function Profile() {
   return (
     <div className="page">
       <div className="page__head">
-        <h1>ข้อมูลของฉัน</h1>
-        <p>ชื่อนี้ผู้ดูแลจะเห็นในคำร้องและในแชท</p>
+        <h1>My profile</h1>
+        <p>The Helpdesk team sees this name on your tickets and in the chat.</p>
       </div>
       <Panel>
         {!guest ? (
-          <Notice tone="info" title="บัญชีทดสอบ">
-            <p className="small">บัญชีนี้เป็นบัญชีตัวอย่างของระบบ แก้ข้อมูลไม่ได้</p>
+          <Notice tone="info" title="Demo account">
+            <p className="small">This is a built-in demo account and cannot be edited.</p>
           </Notice>
         ) : (
           <form className="form form--narrow" onSubmit={save} noValidate>
-            <Field id="profile-name" label="ชื่อที่แสดง" required error={fields.name}>
+            <Field id="profile-name" label="Display name" required error={fields.name}>
               <input id="profile-name" className="input" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} aria-invalid={!!fields.name} />
             </Field>
-            <Field id="profile-email" label="อีเมลติดต่อ" hint="ไม่บังคับ ใช้เป็นข้อมูลติดต่อเท่านั้น ระบบไม่ได้ใช้เข้าสู่ระบบและไม่ได้ยืนยัน" error={fields.email}>
+            <Field id="profile-email" label="Contact email" hint="Optional. Used for contact only; it is not used to sign in and is not verified." error={fields.email}>
               <input id="profile-email" className="input" type="email" value={email} maxLength={120} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!fields.email} />
             </Field>
             {error ? <ErrorNotice error={error} /> : null}
-            {saved && <Notice tone="ok" title="บันทึกแล้ว" />}
+            {saved && <Notice tone="ok" title="Saved" />}
             <div className="form-actions">
-              <button className="btn" type="submit" disabled={saving || name.trim().length < 2}>{saving ? 'กำลังบันทึก…' : 'บันทึก'}</button>
+              <button className="btn" type="submit" disabled={saving || name.trim().length < 2}>{saving ? 'Saving…' : 'Save'}</button>
             </div>
           </form>
         )}

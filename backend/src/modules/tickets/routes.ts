@@ -48,8 +48,8 @@ const named = async (c: Context<AppEnv>, t: Parameters<typeof attachNames>[1][nu
 
 async function loadVisible(c: Context<AppEnv>, id: number) {
   const ticket = await getTicket(c.env.DB, id);
-  if (!ticket) throw notFound('ไม่พบ ticket');
-  if (!canViewTicket(c.get('user'), ticket)) throw forbidden('ดูได้เฉพาะ ticket ของตัวเอง');
+  if (!ticket) throw notFound('Ticket not found');
+  if (!canViewTicket(c.get('user'), ticket)) throw forbidden('You can only view your own tickets');
   return ticket;
 }
 
@@ -57,16 +57,16 @@ async function loadVisible(c: Context<AppEnv>, id: number) {
 ticketRoutes.post('/tickets', async (c) => {
   const user = c.get('user');
   const parsed = validateCreate(await readJson(c));
-  if (!parsed.ok) throw new ApiError(422, 'ValidationError', 'ข้อมูลไม่ครบหรือไม่ถูกต้อง', { fields: parsed.errors });
+  if (!parsed.ok) throw new ApiError(422, 'ValidationError', 'Some fields are missing or invalid', { fields: parsed.errors });
 
   const input = parsed.value;
   const customerId = input.customer_id ?? user.id;
-  if (!isStaff(user.role) && customerId !== user.id) throw forbidden('สร้าง ticket ได้เฉพาะของตัวเอง');
-  if (!(await findIdentity(c.env.DB, customerId))) throw badRequest('customer_id ไม่มีใน Identity');
-  if (!(await categoryIsActive(c.env.DB, input.category_id))) throw badRequest('หมวดหมู่นี้ไม่มีหรือถูกปิดใช้งาน');
+  if (!isStaff(user.role) && customerId !== user.id) throw forbidden('You can only create tickets for yourself');
+  if (!(await findIdentity(c.env.DB, customerId))) throw badRequest('customer_id not found in Identity');
+  if (!(await categoryIsActive(c.env.DB, input.category_id))) throw badRequest('This category does not exist or is disabled');
 
   const id = await insertTicket(c.env.DB, { ...input, customer_id: customerId });
-  await recordStatus(c.env.DB, id, null, 'open', user.id, 'helpdesk', 'สร้างคำร้อง');
+  await recordStatus(c.env.DB, id, null, 'open', user.id, 'helpdesk', 'Ticket created');
   const ticket = (await getTicket(c.env.DB, id))!;
   await publishEvent(c.env, 'ticket.created', ticket); // FR-04
   // PRD §8.1: keep the triage suggestion for the admin — runs after the response, never blocks creation (F31, P4)
@@ -107,7 +107,7 @@ async function patchTicket(c: Context<AppEnv>) {
   const user = c.get('user');
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
   if (!isStaff(user.role) && ticket.status !== 'open') {
-    throw conflict('แก้ไขได้เฉพาะตอนที่คำร้องยังไม่เริ่มดำเนินการ');
+    throw conflict('You can only edit a ticket before work has started');
   }
 
   const body = await readJson<Record<string, unknown>>(c);
@@ -115,24 +115,24 @@ async function patchTicket(c: Context<AppEnv>) {
   const fields: Record<string, unknown> = {};
   for (const key of allowed) if (body[key] !== undefined) fields[key] = body[key];
 
-  if (!Object.keys(fields).length) throw badRequest('ไม่มี field ที่แก้ไขได้', { allowed_fields: allowed });
+  if (!Object.keys(fields).length) throw badRequest('No editable fields', { allowed_fields: allowed });
 
   // Validate every field that reaches SQL
-  if ('title' in fields && String(fields.title).trim().length < 5) throw badRequest('หัวเรื่องสั้นเกินไป');
-  if ('priority' in fields && !PRIORITIES.includes(fields.priority as never)) throw badRequest('priority ไม่ถูกต้อง');
+  if ('title' in fields && String(fields.title).trim().length < 5) throw badRequest('Subject is too short');
+  if ('priority' in fields && !PRIORITIES.includes(fields.priority as never)) throw badRequest('Invalid priority');
   if ('category_id' in fields && !(await categoryIsActive(c.env.DB, Number(fields.category_id)))) {
-    throw badRequest('category_id ไม่มีหรือถูกปิดใช้งาน');
+    throw badRequest('category_id does not exist or is disabled');
   }
   if ('wellbeing_service_slug' in fields && fields.wellbeing_service_slug !== null &&
       !WELLBEING_SLUGS.includes(fields.wellbeing_service_slug as never)) {
-    throw badRequest('wellbeing_service_slug ไม่อยู่ใน catalogue');
+    throw badRequest('wellbeing_service_slug is not in the catalogue');
   }
 
   let newStatus: TicketStatus | null = null;
   if ('status' in fields) {
     const to = fields.status as TicketStatus;
-    if (!STATUSES.includes(to)) throw badRequest('status ไม่ถูกต้อง');
-    if (!canTransition(ticket.status, to)) throw conflict(`เปลี่ยนสถานะจาก ${ticket.status} เป็น ${to} ไม่ได้`);
+    if (!STATUSES.includes(to)) throw badRequest('Invalid status');
+    if (!canTransition(ticket.status, to)) throw conflict(`Cannot change status from ${ticket.status} to ${to}`);
     if (to !== ticket.status) newStatus = to;
     if (to === 'resolved') fields.resolved_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
   }
@@ -157,7 +157,7 @@ ticketRoutes.put('/tickets/:id', patchTicket);
 // ---------- Delete (Assignment 2) ----------
 ticketRoutes.delete('/tickets/:id', async (c) => {
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
-  if (ticket.status === 'resolved' || ticket.status === 'closed') throw conflict('ticket ที่ปิดแล้วลบไม่ได้');
+  if (ticket.status === 'resolved' || ticket.status === 'closed') throw conflict('A resolved ticket cannot be deleted');
   await c.env.DB.prepare('DELETE FROM tickets WHERE id = ?').bind(ticket.id).run();
   return c.json({ message: 'Ticket deleted', id: ticket.id });
 });

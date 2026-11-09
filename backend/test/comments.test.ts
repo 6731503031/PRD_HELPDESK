@@ -26,7 +26,7 @@ describe('automatic chat messages (templates.ts)', () => {
   });
   it('the resolve message carries the summary when there is one', () => {
     expect(MESSAGES.resolved('Replaced the compressor')).toContain('Replaced the compressor');
-    expect(MESSAGES.resolved(null)).toBe('ปิดคำร้องแล้ว');
+    expect(MESSAGES.resolved(null)).toBe('Ticket resolved.');
   });
 });
 

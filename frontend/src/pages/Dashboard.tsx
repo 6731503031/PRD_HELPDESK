@@ -21,15 +21,15 @@ const isActive = (t: Ticket) => t.status === 'open' || t.status === 'in_progress
 
 /** Cards follow the admin's work: triage (UC-07) → Team 10 (UC-08/11) → resolve (UC-09). */
 const VIEWS: Record<View, { label: string; test: (t: Ticket) => boolean }> = {
-  active: { label: 'ยังไม่ปิด', test: isActive },
-  waiting: { label: 'รอคัดกรอง', test: (t) => t.status === 'open' },
-  urgent: { label: 'ด่วนมาก ยังไม่เริ่ม', test: (t) => t.status === 'open' && t.priority === 'urgent' },
+  active: { label: 'Active', test: isActive },
+  waiting: { label: 'Awaiting triage', test: (t) => t.status === 'open' },
+  urgent: { label: 'Urgent, not started', test: (t) => t.status === 'open' && t.priority === 'urgent' },
   maintenance: {
-    label: 'อยู่ระหว่างซ่อม',
+    label: 'Under repair',
     test: (t) => isActive(t) && !!t.maintenance_work_order_id && !isRepairDone(t.maintenance_status),
   },
-  repaired: { label: 'ซ่อมเสร็จ รอปิดงาน', test: (t) => isActive(t) && isRepairDone(t.maintenance_status) },
-  done: { label: 'แก้ไขแล้ว', test: (t) => t.status === 'resolved' || t.status === 'closed' },
+  repaired: { label: 'Repaired, ready to resolve', test: (t) => isActive(t) && isRepairDone(t.maintenance_status) },
+  done: { label: 'Resolved', test: (t) => t.status === 'resolved' || t.status === 'closed' },
 };
 const CARDS: View[] = ['active', 'waiting', 'urgent', 'maintenance', 'repaired', 'done'];
 /** Cards that turn red when they are not empty: work someone is waiting on. */
@@ -67,7 +67,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
     return (
       <div className="page">
         <a className="crumb" href="#/queue">
-          <Icon name="back" size={16} /> กลับไปแดชบอร์ด
+          <Icon name="back" size={16} /> Back to dashboard
         </a>
         <TicketDetail id={selectedId} onChanged={reload} />
       </div>
@@ -78,12 +78,12 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
     <div className="page">
       <div className="pagebar">
         <div>
-          <h1>แดชบอร์ด</h1>
-          <p>คำร้องเรียงตามความเร่งด่วน แล้วตามเวลาที่รอ งานด่วนมากที่ยังไม่เริ่มดำเนินการเกิน 1 ชั่วโมงจะถูกยกระดับอัตโนมัติ</p>
+          <h1>Dashboard</h1>
+          <p>Tickets sorted by urgency, then by waiting time. Urgent tickets not started within 1 hour are escalated automatically.</p>
         </div>
         <div className="pagebar__actions">
           <button className="btn btn--secondary" onClick={() => void reload()}>
-            <Icon name="refresh" size={16} /> รีเฟรช
+            <Icon name="refresh" size={16} /> Refresh
           </button>
         </div>
       </div>
@@ -94,7 +94,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
         <ErrorNotice error={error} />
       ) : (
         <>
-          <div className="stats" role="group" aria-label="ตัวเลขสรุป เลือกเพื่อกรองรายการ">
+          <div className="stats" role="group" aria-label="Summary, select to filter the list">
             {CARDS.map((v) => {
               const n = count(v);
               return (
@@ -112,7 +112,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
           </div>
 
           {all.length > 0 && (
-            <div className="breakdown" aria-label="คำร้องทั้งหมดแยกตามสถานะ">
+            <div className="breakdown" aria-label="All tickets by status">
               <div className="bar">
                 {STATUS_ORDER.map((s) => {
                   const n = all.filter((t) => stageOf(t.status) === s).length;
@@ -131,26 +131,26 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
             </div>
           )}
 
-          <Panel flush title={`คำร้อง: ${VIEWS[view].label}`}>
+          <Panel flush title={`Tickets: ${VIEWS[view].label}`}>
             <div className="toolbar">
               <label className="search">
-                <span className="visually-hidden">ค้นหา</span>
+                <span className="visually-hidden">Search</span>
                 <Icon name="search" size={16} />
-                <input className="input" placeholder="ค้นหาเลขที่ เรื่อง ผู้แจ้ง" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input className="input" placeholder="Search ticket, subject or requester" value={search} onChange={(e) => setSearch(e.target.value)} />
               </label>
-              <label className="visually-hidden" htmlFor="f-priority">ความเร่งด่วน</label>
+              <label className="visually-hidden" htmlFor="f-priority">Urgency</label>
               <select id="f-priority" className="select" value={priority} onChange={(e) => setPriority(e.target.value as Priority | '')}>
-                <option value="">ความเร่งด่วน: ทั้งหมด</option>
+                <option value="">Urgency: All</option>
                 {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
-                  <option key={p} value={p}>ความเร่งด่วน: {PRIORITY_LABEL[p]}</option>
+                  <option key={p} value={p}>Urgency: {PRIORITY_LABEL[p]}</option>
                 ))}
               </select>
-              <span className="toolbar__count" aria-live="polite">{rows.length} รายการ</span>
+              <span className="toolbar__count" aria-live="polite">{rows.length} {rows.length === 1 ? 'ticket' : 'tickets'}</span>
             </div>
             {rows.length === 0 ? (
-              <div className="empty"><p>ไม่มีคำร้องในมุมมองนี้</p></div>
+              <div className="empty"><p>No tickets in this view.</p></div>
             ) : (
-              <TicketTable tickets={rows} mode="queue" hrefFor={(t) => `/queue/${t.id}`} caption={`คำร้อง: ${VIEWS[view].label}`} />
+              <TicketTable tickets={rows} mode="queue" hrefFor={(t) => `/queue/${t.id}`} caption={`Tickets: ${VIEWS[view].label}`} />
             )}
           </Panel>
         </>
