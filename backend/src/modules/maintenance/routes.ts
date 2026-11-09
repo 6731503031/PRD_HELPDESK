@@ -2,7 +2,7 @@
  * Maintenance integration endpoints (PRD §6, §9.2).
  * Owner: P3 (Maintenance Integration)
  *
- *   POST /tickets/:id/link-maintenance   { work_order_id }   agent/admin only   (F13)
+ *   POST /tickets/:id/link-maintenance   { work_order_id }   admin only         (F13)
  *   POST /webhooks/maintenance           Team 10 → us, HMAC-signed           (F14, F29)
  *
  * The UI already calls link-maintenance and shows `maintenance_status`
@@ -16,7 +16,7 @@ export const maintenanceRoutes = new Hono<AppEnv>();
 
 /**
  * TODO(P3, F13) — mounted behind requireAuth, so c.get('user') exists.
- *  1. requireRole('agent','admin') (core/auth.ts)
+ *  1. requireRole('admin') (core/auth.ts)
  *  2. body.work_order_id: non-empty string, ≤ 64 chars → else 400
  *  3. ticket must exist (404); if it already has an active work order → 409 (PRD §6.2: at most one)
  *  4. fetchWorkOrder(...) → not_found → 400 ; unavailable → 503 (Helpdesk keeps working)

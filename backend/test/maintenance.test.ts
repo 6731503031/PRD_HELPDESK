@@ -42,7 +42,7 @@ describe.skip('#6 Work Order status mapping (F14) — TODO P3', () => {
   it('moves the ticket to in_progress when repair starts', () => {
     expect(mapWorkOrderStatus('in_progress')?.ticketStatus).toBe('in_progress');
   });
-  it('never auto-resolves: completed leaves the status for an agent to confirm', () => {
+  it('never auto-resolves: completed leaves the status for the admin to confirm', () => {
     expect(mapWorkOrderStatus('completed')?.ticketStatus).toBeNull();
   });
   it('rejects unknown statuses', () => {
