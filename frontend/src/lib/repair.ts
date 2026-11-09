@@ -21,7 +21,22 @@ const HINTS: { category: RepairCategory; words: string[] }[] = [
   { category: 'Electrical', words: ['light', 'lamp', 'socket', 'power', 'plug', 'electric', 'switch', 'projector', 'ไฟ', 'หลอด', 'ปลั๊ก', 'สวิตช์', 'ไฟฟ้า', 'โปรเจคเตอร์', 'โปรเจกเตอร์'] },
 ];
 
-export function guessRepairCategory(text: string): RepairCategory {
-  const t = text.toLowerCase();
-  return HINTS.find((h) => h.words.some((w) => t.includes(w)))?.category ?? 'Not sure';
+/** Thai words that contain "ไฟ" but have nothing to do with electricity (file, Wi-Fi). */
+const NOT_ELECTRICAL = /ไฟล์|ไวไฟ/g;
+
+/** English: whole word (plus s/es/ed/ing), so "fire" ≠ "firewall", "light" ≠ "highlight". Thai: plain text. */
+function hasWord(text: string, word: string): boolean {
+  if (!/^[\x00-\x7F]+$/.test(word)) return text.includes(word);
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}(s|es|ed|ing)?\\b`).test(text);
 }
+
+export function guessRepairCategory(text: string): RepairCategory {
+  const t = text.toLowerCase().replace(NOT_ELECTRICAL, ' ');
+  return HINTS.find((h) => h.words.some((w) => hasWord(t, w)))?.category ?? 'Not sure';
+}
+
+/** Only the Facility category is a repair that goes to Team 10. One place, so a rename is a one-line fix. */
+export const REPAIR_HELPDESK_CATEGORY = 'facility';
+export const isRepairCategoryName = (name: string | null | undefined) =>
+  (name ?? '').trim().toLowerCase() === REPAIR_HELPDESK_CATEGORY;

@@ -14,7 +14,7 @@ import { ErrorNotice, Loading, Panel } from '../components/ui';
 import { useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, isRepairDone, stageOf } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
-import { REPAIR_CATEGORIES } from '../lib/repair';
+import { REPAIR_CATEGORIES, isRepairCategoryName } from '../lib/repair';
 
 type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'repaired' | 'done';
 
@@ -54,7 +54,7 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
   const [repairCategory, setRepairCategory] = useState('');
   const [search, setSearch] = useState('');
   const { data: categories } = useAsync(() => api.categories(), []);
-  const facilityChosen = categories?.find((c) => c.id === category)?.name.toLowerCase() === 'facility';
+  const facilityChosen = isRepairCategoryName(categories?.find((c) => c.id === category)?.name);
 
   const all = data ?? [];
   const count = (v: View) => all.filter((t) => VIEWS[v].test(t)).length;
