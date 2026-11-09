@@ -619,6 +619,9 @@ fieldset { border: 0; margin: 0; padding: 0; }
 .msgs__listhead { display: flex; align-items: center; justify-content: space-between; padding: var(--s4) var(--s4) var(--s2); }
 .msgs__h { font-size: 1.25rem; }
 .msgs__search { flex: none; max-width: none; margin: 0 var(--s4) var(--s3); display: block; }
+.msgs__filters { display: flex; gap: var(--s2); padding: 0 var(--s4) var(--s3); }
+.msgs__filters .select { flex: 1 1 0; min-width: 0; width: auto; padding: 5px var(--s2); font-size: 0.85rem; }
+.msgs__count { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); padding: 0 var(--s4) var(--s2); font-size: 0.8rem; color: var(--muted); }
 .msgs__items { flex: 1; min-height: 0; overflow-y: auto; }
 .msgs__pad { padding: var(--s4); }
 

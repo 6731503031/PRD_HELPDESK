@@ -7,11 +7,12 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
+import type { Priority, TicketStatus } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
 import { Avatar, Icon } from '../components/Icon';
 import { Chat } from '../components/Chat';
 import { ErrorNotice, Loading, Notice, PriorityText, StatusBadge } from '../components/ui';
-import { formatDateTime, listTime, maintenanceLabel } from '../lib/format';
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, formatDateTime, listTime, maintenanceLabel, stageOf } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { usePersisted } from '../lib/usePersisted';
 
@@ -22,6 +23,8 @@ export function Messages({ selectedId }: { selectedId?: number }) {
   const staff = isStaff(user);
   const { data, error, loading, refresh } = useAsync(() => (staff ? api.queue() : api.myTickets()), [user?.id]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('');
   const [listOpen, setListOpen] = usePersisted('helpdesk.chat.list', true);
   const [infoOpen, setInfoOpen] = usePersisted('helpdesk.chat.info', window.matchMedia('(min-width: 1280px)').matches);
 
@@ -29,8 +32,14 @@ export function Messages({ selectedId }: { selectedId?: number }) {
   const sorted = useMemo(() => [...(data ?? [])].sort((a, b) => b.updated_at.localeCompare(a.updated_at)), [data]);
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return q ? sorted.filter((t) => [t.ticket_number, t.title, t.customer_name ?? ''].some((s) => s.toLowerCase().includes(q))) : sorted;
-  }, [sorted, search]);
+    return sorted.filter(
+      (t) =>
+        (!statusFilter || stageOf(t.status) === statusFilter) && // 'closed' counts as resolved, like everywhere else
+        (!priorityFilter || t.priority === priorityFilter) &&
+        (!q || [t.ticket_number, t.title, t.customer_name ?? ''].some((s) => s.toLowerCase().includes(q))),
+    );
+  }, [sorted, search, statusFilter, priorityFilter]);
+  const filtering = !!(search.trim() || statusFilter || priorityFilter);
   const selected = sorted.find((t) => t.id === selectedId) ?? null;
 
   // The list stays fresh (order, times) while the tab is visible.
@@ -65,6 +74,39 @@ export function Messages({ selectedId }: { selectedId?: number }) {
           <input className="input" placeholder={staff ? 'ค้นหาเลขที่ เรื่อง ผู้แจ้ง' : 'ค้นหาเลขที่ หรือเรื่อง'} value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
 
+        <div className="msgs__filters">
+          <label className="visually-hidden" htmlFor="chat-f-status">สถานะ</label>
+          <select id="chat-f-status" className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as TicketStatus | '')}>
+            <option value="">ทุกสถานะ</option>
+            {STATUS_ORDER.map((st) => (
+              <option key={st} value={st}>{STATUS_LABEL[st]}</option>
+            ))}
+          </select>
+          <label className="visually-hidden" htmlFor="chat-f-priority">ความเร่งด่วน</label>
+          <select id="chat-f-priority" className="select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as Priority | '')}>
+            <option value="">ทุกระดับ</option>
+            {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
+              <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>
+            ))}
+          </select>
+        </div>
+        {filtering && (
+          <p className="msgs__count" aria-live="polite">
+            {rows.length} จาก {sorted.length} รายการ
+            <button
+              type="button"
+              className="btn btn--plain btn--small"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('');
+                setPriorityFilter('');
+              }}
+            >
+              ล้างตัวกรอง
+            </button>
+          </p>
+        )}
+
         <div className="msgs__items">
           {loading && !data ? (
             <div className="msgs__pad"><Loading variant="table" /></div>
@@ -72,8 +114,8 @@ export function Messages({ selectedId }: { selectedId?: number }) {
             <div className="msgs__pad"><ErrorNotice error={error} /></div>
           ) : rows.length === 0 ? (
             <div className="empty">
-              <p>{search ? 'ไม่พบบทสนทนาที่ค้นหา' : staff ? 'ยังไม่มีคำร้อง' : 'คุณยังไม่มีคำร้อง'}</p>
-              {!staff && !search && <a className="btn" href="#/new">แจ้งปัญหาใหม่</a>}
+              <p>{filtering ? 'ไม่พบบทสนทนาตามตัวกรอง' : staff ? 'ยังไม่มีคำร้อง' : 'คุณยังไม่มีคำร้อง'}</p>
+              {!staff && !filtering && <a className="btn" href="#/new">แจ้งปัญหาใหม่</a>}
             </div>
           ) : (
             rows.map((t) => (
