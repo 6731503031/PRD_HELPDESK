@@ -42,7 +42,7 @@ check "chat: requester posts"      201 "$(code -X POST "$BASE/tickets/$ID/commen
 check "chat: admin replies"        201 "$(code -X POST "$BASE/tickets/$ID/comments" "${ADMIN[@]}" "${J[@]}" -d '{"content":"smoke: checking now"}')"
 check "chat: empty message → 400"  400 "$(code -X POST "$BASE/tickets/$ID/comments" "${ALICE[@]}" "${J[@]}" -d '{"content":"   "}')"
 check "chat: other requester"      403 "$(code "$BASE/tickets/$ID/comments" "${BOB[@]}")"
-check "chat: both sides see 2"     2 "$(curl -s "$BASE/tickets/$ID/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["count"])')"
+check "chat: both sides see 2"     2 "$(curl -s "$BASE/tickets/$ID/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(sum(1 for m in json.load(sys.stdin)["data"] if m["author_role"]!="system"))')"
 echo "--- guest sign-in (Identity stub) ---"
 GUEST=$(curl -s -X POST "$BASE/auth/guest" "${J[@]}" -d '{"name":"Smoke Guest"}')
 GID=$(echo "$GUEST" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["id"])')
@@ -96,6 +96,17 @@ echo "      work order $WO3"
 check "send: again → 409"                409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
 check "send: webhook for it → 200"       200 "$(hook "$(evt "e-$RUN-6" "$WO3" in_progress)")"
 check "  sent ticket is in_progress"     "in_progress/in_progress" "$(curl -s "$BASE/tickets/$ID3" "${ADMIN[@]}" | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"];print(d["status"]+"/"+str(d["maintenance_status"]))')"
+echo "--- automatic chat messages (role 'system', seen by the requester) ---"
+sysmsgs() { curl -s "$BASE/tickets/$ID3/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(sum(1 for m in json.load(sys.stdin)["data"] if m["author_role"]=="system"))'; }
+check "chat: start + sent + repair started"  3 "$(sysmsgs)"
+hook "$(evt "e-$RUN-6" "$WO3" in_progress)" >/dev/null
+check "chat: same event again adds nothing"   3 "$(sysmsgs)"
+hook "$(evt "e-$RUN-7" "$WO3" completed)" >/dev/null
+check "chat: repair done → +1"               4 "$(sysmsgs)"
+code -X POST "$BASE/tickets/$ID3/resolve" "${ADMIN[@]}" "${J[@]}" -d '{"resolution_note":"Light replaced"}' >/dev/null
+check "chat: resolved with the summary"      "ปิดคำร้องแล้ว สรุปการแก้ไข: Light replaced" "$(curl -s "$BASE/tickets/$ID3/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"][-1]["content"])')"
+hook "$(evt "e-$RUN-8" "$WO3" closed)" >/dev/null
+check "chat: nothing after the ticket is resolved" 5 "$(sysmsgs)"
 check "AI suggest: empty body → 422" 422 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"
 check "admin stats (P4)"           501 "$(code "$BASE/admin/stats" "${ADMIN[@]}")"
 echo "=== $pass passed, $fail failed ==="

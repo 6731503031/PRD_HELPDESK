@@ -17,6 +17,7 @@ import { findIdentity } from '../../core/profiles';
 import { ApiError, badRequest, conflict, forbidden, notFound, parseId, readJson } from '../../core/http';
 import { recordSuggestion } from '../../ai/record';
 import { publishEvent } from '../events/publish';
+import { MESSAGES, postSystemMessage } from '../comments/templates';
 import {
   PRIORITIES,
   STATUSES,
@@ -138,6 +139,12 @@ async function patchTicket(c: Context<AppEnv>) {
 
   await updateTicket(c.env.DB, ticket.id, fields);
   if (newStatus) await recordStatus(c.env.DB, ticket.id, ticket.status, newStatus, user.id);
+  // Tell the requester in the chat (templates.ts)
+  if (newStatus === 'in_progress' && ticket.status === 'open') await postSystemMessage(c.env.DB, ticket.id, MESSAGES.started);
+  if (newStatus === 'resolved') {
+    const note = typeof fields.resolution_note === 'string' ? fields.resolution_note.trim() || null : null;
+    await postSystemMessage(c.env.DB, ticket.id, MESSAGES.resolved(note));
+  }
 
   const updated = (await getTicket(c.env.DB, ticket.id))!;
   if (newStatus === 'resolved') await publishEvent(c.env, 'ticket.resolved', updated);
@@ -171,6 +178,7 @@ ticketRoutes.post('/tickets/:id/resolve', async (c) => {
     .bind(note, ticket.id)
     .run();
   await recordStatus(c.env.DB, ticket.id, ticket.status, 'resolved', user.id, 'helpdesk', note);
+  await postSystemMessage(c.env.DB, ticket.id, MESSAGES.resolved(note));
 
   const updated = (await getTicket(c.env.DB, ticket.id))!;
   await publishEvent(c.env, 'ticket.resolved', updated);

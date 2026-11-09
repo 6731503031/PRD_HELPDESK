@@ -21,6 +21,7 @@ import { CREATE_NOT_SUPPORTED, createWorkOrder, fetchWorkOrder } from './client'
 import { parseWebhookEvent, validateRepairRequest, validateWorkOrderId } from './envelope';
 import { mapWorkOrderStatus, nextTicketStatus } from './mapping';
 import { verifyWebhook } from './signature';
+import { MESSAGES, postSystemMessage, repairMessage } from '../comments/templates';
 
 export const maintenanceRoutes = new Hono<AppEnv>();
 
@@ -86,6 +87,7 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
   });
   await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `ส่งแจ้งซ่อมให้ Team 10 ได้ใบงาน ${id.id}`);
   await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: id.id });
+  await postSystemMessage(c.env.DB, ticket.id, MESSAGES.sentToMaintenance);
 
   return c.json({
     ticket_number: ticket.ticket_number,
@@ -124,6 +126,7 @@ maintenanceRoutes.post('/tickets/:id/link-maintenance', requireRole('admin'), as
   });
   await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `ผูกใบงานซ่อม ${checked.id}`);
   await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: checked.id });
+  await postSystemMessage(c.env.DB, ticket.id, MESSAGES.sentToMaintenance);
 
   return c.json({
     ticket_number: ticket.ticket_number,
@@ -166,10 +169,10 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
   if (seen) return c.json({ received: true, duplicate: true });
 
   const ticket = await c.env.DB.prepare(
-    `SELECT id, ticket_number, status FROM tickets WHERE maintenance_work_order_id = ?`,
+    `SELECT id, ticket_number, status, maintenance_status FROM tickets WHERE maintenance_work_order_id = ?`,
   )
     .bind(workOrderId)
-    .first<{ id: number; ticket_number: string; status: 'open' | 'in_progress' | 'resolved' | 'closed' }>();
+    .first<{ id: number; ticket_number: string; status: 'open' | 'in_progress' | 'resolved' | 'closed'; maintenance_status: string | null }>();
   if (!ticket) return c.json({ received: true, linked: false }, 202); // valid event, no ticket linked to this work order
 
   const next = nextTicketStatus(ticket.status, effect);
@@ -193,6 +196,10 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
     if (String(err).includes('UNIQUE')) return c.json({ received: true, duplicate: true }); // the same event raced us
     throw err;
   }
+
+  // Tell the requester in the chat — real progress only, once per stage, never on a ticket already finished.
+  const chat = repairMessage(ticket.maintenance_status, status);
+  if (chat && ticket.status !== 'resolved' && ticket.status !== 'closed') await postSystemMessage(c.env.DB, ticket.id, chat);
 
   if (next) {
     const updated = await getTicket(c.env.DB, ticket.id);
