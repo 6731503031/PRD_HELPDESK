@@ -9,15 +9,15 @@
 
 /** author_id of automatic messages. Real users start at 1, guests at 1000. */
 export const SYSTEM_AUTHOR_ID = 0;
-export const SYSTEM_AUTHOR_NAME = 'แจ้งเตือนอัตโนมัติ';
+export const SYSTEM_AUTHOR_NAME = 'Automatic update';
 
 export const MESSAGES = {
-  started: 'ผู้ดูแลรับเรื่องแล้ว กำลังดำเนินการ มีอะไรเพิ่มเติมพิมพ์ในแชทนี้ได้เลย',
-  sentToMaintenance: 'ส่งเรื่องให้ฝ่ายซ่อมบำรุงแล้ว ช่างจะเข้าไปดูตามสถานที่ที่แจ้งไว้ ความคืบหน้าจะแจ้งในแชทนี้',
-  repairStarted: 'ช่างกำลังดำเนินการซ่อม',
-  repairDone: 'ช่างแจ้งว่าซ่อมเสร็จแล้ว รบกวนตรวจสอบ ถ้ายังมีปัญหาตอบในแชทนี้ได้',
-  repairCancelled: 'ฝ่ายซ่อมบำรุงยกเลิกใบงาน ผู้ดูแลจะตรวจสอบและแจ้งอีกครั้ง',
-  resolved: (note: string | null) => (note ? `ปิดคำร้องแล้ว สรุปการแก้ไข: ${note}` : 'ปิดคำร้องแล้ว'),
+  started: 'The Helpdesk team has started working on your ticket. Feel free to add anything else in this chat.',
+  sentToMaintenance: 'Your request has been sent to Maintenance. A technician will visit the reported location, and progress will be posted in this chat.',
+  repairStarted: 'A technician is working on the repair.',
+  repairDone: 'Maintenance reports the repair is complete. Please check, and reply in this chat if the problem remains.',
+  repairCancelled: 'Maintenance has cancelled the work order. The Helpdesk team will review it and update you.',
+  resolved: (note: string | null) => (note ? `Ticket resolved. Summary: ${note}` : 'Ticket resolved.'),
 } as const;
 
 /**

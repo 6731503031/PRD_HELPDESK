@@ -42,13 +42,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     res = await fetch(BASE + path, { ...init, headers });
   } catch {
-    throw new ApiError(0, 'Network', 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง');
+    throw new ApiError(0, 'Network', 'Cannot reach the server. Check your internet connection and try again.');
   }
 
   const body = await res.json().catch(() => ({}));
   if (res.ok) return body as T;
-  if (res.status === 501) throw new NotReadyError(body.feature ?? '', body.owner ?? '', body.message ?? 'ยังไม่เปิดใช้งาน');
-  throw new ApiError(res.status, body.error ?? 'Error', body.message ?? `เกิดข้อผิดพลาด (${res.status})`, body.fields);
+  if (res.status === 501) throw new NotReadyError(body.feature ?? '', body.owner ?? '', body.message ?? 'Not available yet');
+  throw new ApiError(res.status, body.error ?? 'Error', body.message ?? `Something went wrong (${res.status})`, body.fields);
 }
 
 /** Old 'assigned' rows (before v1.1) are shown as in progress, so no screen meets an unknown status. */

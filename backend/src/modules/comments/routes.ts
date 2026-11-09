@@ -44,8 +44,8 @@ async function withAuthors(db: D1Database, rows: Comment[]) {
 /** Same rule as viewing the ticket: requester sees own tickets, admin sees all (FR-07). */
 async function loadVisibleTicket(c: Context<AppEnv>) {
   const ticket = await getTicket(c.env.DB, parseId(c.req.param('id')));
-  if (!ticket) throw notFound('ไม่พบคำร้อง');
-  if (!canViewTicket(c.get('user'), ticket)) throw forbidden('ดูได้เฉพาะคำร้องของตัวเอง');
+  if (!ticket) throw notFound('Ticket not found');
+  if (!canViewTicket(c.get('user'), ticket)) throw forbidden('You can only view your own tickets');
   return ticket;
 }
 

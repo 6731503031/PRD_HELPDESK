@@ -23,7 +23,7 @@ export class ApiError extends Error {
 export const badRequest = (message: string, extra?: Record<string, unknown>) =>
   new ApiError(400, 'BadRequest', message, extra);
 export const forbidden = (message: string) => new ApiError(403, 'Forbidden', message);
-export const notFound = (message = 'ไม่พบข้อมูล') => new ApiError(404, 'NotFound', message);
+export const notFound = (message = 'Not found') => new ApiError(404, 'NotFound', message);
 export const conflict = (message: string) => new ApiError(409, 'Conflict', message);
 
 /**
@@ -31,7 +31,7 @@ export const conflict = (message: string) => new ApiError(409, 'Conflict', messa
  * The UI shows these as "ยังไม่เปิดใช้งาน" instead of breaking.
  */
 export const notImplemented = (feature: string, owner: string) =>
-  new ApiError(501, 'NotImplemented', `ฟีเจอร์ ${feature} ยังไม่ได้ทำ (ผู้รับผิดชอบ: ${owner})`, {
+  new ApiError(501, 'NotImplemented', `Feature ${feature} is not implemented yet (owner: ${owner})`, {
     feature,
     owner,
   });
@@ -41,14 +41,14 @@ export async function readJson<T = Record<string, unknown>>(c: Context): Promise
   try {
     return (await c.req.json()) as T;
   } catch {
-    throw badRequest('request body ต้องเป็น JSON ที่ถูกต้อง');
+    throw badRequest('Request body must be valid JSON');
   }
 }
 
 /** Parse a positive integer path param or throw 400. */
 export function parseId(raw: string | undefined, name = 'id'): number {
   const n = Number(raw);
-  if (!Number.isInteger(n) || n <= 0) throw badRequest(`${name} ไม่ถูกต้อง`);
+  if (!Number.isInteger(n) || n <= 0) throw badRequest(`Invalid ${name}`);
   return n;
 }
 
@@ -70,7 +70,7 @@ export function handleError(err: Error, c: Context<AppEnv>) {
   }
   console.error(JSON.stringify({ level: 'error', correlationId: c.get('correlationId'), err: String(err) }));
   return c.json(
-    { error: 'InternalServerError', message: 'มีบางอย่างผิดพลาด', correlationId: c.get('correlationId') },
+    { error: 'InternalServerError', message: 'Something went wrong', correlationId: c.get('correlationId') },
     500,
   );
 }

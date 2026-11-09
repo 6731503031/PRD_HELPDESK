@@ -25,13 +25,13 @@ export function TicketTable({
         <caption className="visually-hidden">{caption}</caption>
         <thead>
           <tr>
-            <th scope="col">เลขที่</th>
-            <th scope="col">เรื่อง</th>
-            <th scope="col">หมวดหมู่</th>
-            <th scope="col">ความเร่งด่วน</th>
-            <th scope="col">สถานะ</th>
-            {queue && <th scope="col">ผู้แจ้ง</th>}
-            <th scope="col">{queue ? 'รอมาแล้ว' : 'อัปเดตล่าสุด'}</th>
+            <th scope="col">Ticket</th>
+            <th scope="col">Subject</th>
+            <th scope="col">Category</th>
+            <th scope="col">Urgency</th>
+            <th scope="col">Status</th>
+            {queue && <th scope="col">Requester</th>}
+            <th scope="col">{queue ? 'Waiting' : 'Last updated'}</th>
           </tr>
         </thead>
         <tbody>
@@ -42,7 +42,7 @@ export function TicketTable({
                 <a className="title" href={`#${hrefFor(t)}`} title={t.title}>{t.title}</a>
                 {t.maintenance_work_order_id && (
                   <span className="sub sub--icon">
-                    <Icon name="wrench" size={13} /> ใบงานซ่อม {t.maintenance_work_order_id}
+                    <Icon name="wrench" size={13} /> Work order {t.maintenance_work_order_id}
                     {queue && t.maintenance_status ? ` · ${maintenanceLabel(t.maintenance_status)}` : ''}
                   </span>
                 )}
