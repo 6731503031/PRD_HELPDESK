@@ -70,7 +70,7 @@ export const api = {
   categories: (all = false) => request<{ data: Category[] }>(`/categories${all ? '?all=true' : ''}`).then((r) => r.data),
 
   // tickets (P1)
-  createTicket: (input: { subject: string; description: string; category_id: number; urgency: Priority }) =>
+  createTicket: (input: { subject: string; description: string; location: string; category_id: number; urgency: Priority }) =>
     request<{ data: Ticket }>('/tickets', post(input)).then((r) => fix(r.data)),
   myTickets: () => request<{ data: Ticket[] }>('/tickets/me').then((r) => r.data.map(fix)),
   queue: (f: { status?: string; priority?: string } = {}) => {
@@ -80,7 +80,7 @@ export const api = {
     return request<{ data: Ticket[] }>(`/tickets?${q}`).then((r) => r.data.map(fix));
   },
   ticket: (id: number) => request<{ data: TicketDetail }>(`/tickets/${id}`).then((r) => fix(r.data)),
-  updateTicket: (id: number, fields: Partial<{ priority: Priority; category_id: number; status: TicketStatus; title: string; description: string }>) =>
+  updateTicket: (id: number, fields: Partial<{ priority: Priority; category_id: number; status: TicketStatus; title: string; description: string; location: string }>) =>
     request<{ data: Ticket }>(`/tickets/${id}`, patch(fields)).then((r) => fix(r.data)),
   resolve: (id: number, note: string) =>
     request<{ data: Ticket }>(`/tickets/${id}/resolve`, post({ resolution_note: note })).then((r) => fix(r.data)),

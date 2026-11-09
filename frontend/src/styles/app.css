@@ -680,9 +680,9 @@ fieldset { border: 0; margin: 0; padding: 0; }
 /* Automatic message (system): a grey pill in the middle, not anyone's bubble */
 .sysmsg {
   display: flex; align-items: flex-start; justify-content: center; gap: var(--s2);
-  max-width: 88%; margin: var(--s3) auto; padding: 6px var(--s3);
+  width: fit-content; max-width: 80%; margin: var(--s3) auto; padding: 6px var(--s3);
   background: var(--subtle); border: 1px solid var(--line); border-radius: 12px;
-  color: var(--muted); font-size: 0.82rem; line-height: 1.45; text-align: left;
+  color: var(--muted); font-size: 0.82rem; line-height: 1.45; text-align: center;
 }
 .sysmsg svg { flex: none; margin-top: 2px; color: var(--brand); }
 .sysmsg time { flex: none; font-size: 0.72rem; opacity: 0.8; }

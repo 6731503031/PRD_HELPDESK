@@ -193,6 +193,8 @@ export function Messages({ selectedId }: { selectedId?: number }) {
               <div className="inline mt-2"><StatusBadge status={selected.status} /><PriorityText priority={selected.priority} /></div>
             </div>
             <dl className="meta">
+              <dt>Location</dt>
+              <dd>{selected.location ?? '–'}</dd>
               <dt>Category</dt>
               <dd><span className="chip">{selected.category_name ?? '–'}</span></dd>
               <dt>Requester</dt>

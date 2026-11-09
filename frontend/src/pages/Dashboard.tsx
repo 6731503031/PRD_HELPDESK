@@ -14,6 +14,7 @@ import { ErrorNotice, Loading, Panel } from '../components/ui';
 import { useIdentity } from '../auth/identity';
 import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, isRepairDone, stageOf } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { REPAIR_CATEGORIES } from '../lib/repair';
 
 type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'repaired' | 'done';
 
@@ -48,7 +49,12 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
   const { data, error, loading, reload } = useAsync(() => api.queue(), [user?.id]);
   const [view, setView] = useState<View>('active');
   const [priority, setPriority] = useState<Priority | ''>('');
+  const [category, setCategory] = useState<number | ''>('');
+  /** Team 10 repair category — only offered when the Facility category is chosen. */
+  const [repairCategory, setRepairCategory] = useState('');
   const [search, setSearch] = useState('');
+  const { data: categories } = useAsync(() => api.categories(), []);
+  const facilityChosen = categories?.find((c) => c.id === category)?.name.toLowerCase() === 'facility';
 
   const all = data ?? [];
   const count = (v: View) => all.filter((t) => VIEWS[v].test(t)).length;
@@ -59,9 +65,11 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
       (t) =>
         VIEWS[view].test(t) &&
         (!priority || t.priority === priority) &&
+        (!category || t.category_id === category) &&
+        (!facilityChosen || !repairCategory || t.maintenance_category === repairCategory) &&
         (!q || [t.ticket_number, t.title, t.customer_name ?? '', t.category_name ?? ''].some((s) => s.toLowerCase().includes(q))),
     );
-  }, [all, view, priority, search]);
+  }, [all, view, priority, category, facilityChosen, repairCategory, search]);
 
   if (selectedId) {
     return (
@@ -145,6 +153,32 @@ export function Dashboard({ selectedId }: { selectedId?: number }) {
                   <option key={p} value={p}>Urgency: {PRIORITY_LABEL[p]}</option>
                 ))}
               </select>
+              <label className="visually-hidden" htmlFor="f-category">Category</label>
+              <select
+                id="f-category"
+                className="select"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value ? Number(e.target.value) : '');
+                  setRepairCategory('');
+                }}
+              >
+                <option value="">Category: All</option>
+                {categories?.map((c) => (
+                  <option key={c.id} value={c.id}>Category: {c.name}</option>
+                ))}
+              </select>
+              {facilityChosen && (
+                <>
+                  <label className="visually-hidden" htmlFor="f-repair">Repair category</label>
+                  <select id="f-repair" className="select" value={repairCategory} onChange={(e) => setRepairCategory(e.target.value)}>
+                    <option value="">Repair: All</option>
+                    {REPAIR_CATEGORIES.map((r) => (
+                      <option key={r} value={r}>Repair: {r}</option>
+                    ))}
+                  </select>
+                </>
+              )}
               <span className="toolbar__count" aria-live="polite">{rows.length} {rows.length === 1 ? 'ticket' : 'tickets'}</span>
             </div>
             {rows.length === 0 ? (
