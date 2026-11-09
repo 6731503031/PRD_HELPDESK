@@ -15,6 +15,7 @@ export function CreateTicket() {
   const { data: categories, error: categoriesError } = useAsync(() => api.categories(), []);
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [urgency, setUrgency] = useState<Priority | ''>('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -54,6 +55,7 @@ export function CreateTicket() {
       const ticket = await api.createTicket({
         subject,
         description,
+        location,
         category_id: Number(categoryId),
         urgency: urgency as Priority,
       });
@@ -70,6 +72,7 @@ export function CreateTicket() {
     setCreated(null);
     setSubject('');
     setDescription('');
+    setLocation('');
     setCategoryId('');
     setUrgency('');
     setSuggestion(null);
@@ -86,7 +89,7 @@ export function CreateTicket() {
           <p className="muted">Ticket number</p>
           <p className="ticket-number">{created.ticket_number}</p>
           <p className="mt-2">{created.title}</p>
-          <p className="muted small mt-2">You can edit the subject and description until the Helpdesk team starts work on it.</p>
+          <p className="muted small mt-2">You can edit the subject, description and location until the Helpdesk team starts work on it.</p>
           <div className="form-actions mt-5">
             <a className="btn" href={`#/my/${created.id}`}>View ticket status</a>
             <button className="btn btn--secondary" onClick={reset}>Report another issue</button>
@@ -128,6 +131,19 @@ export function CreateTicket() {
                 maxLength={5000}
                 aria-invalid={!!fieldErrors.description}
                 aria-describedby="description-hint"
+                required
+              />
+            </Field>
+
+            <Field id="location" label="Location" required hint="Where the problem is, e.g. Building B, Room B-204, or Online" error={fieldErrors.location}>
+              <input
+                id="location"
+                className="input"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                maxLength={200}
+                aria-invalid={!!fieldErrors.location}
+                aria-describedby="location-hint"
                 required
               />
             </Field>

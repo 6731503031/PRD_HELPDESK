@@ -1,5 +1,5 @@
 import type { Ticket } from '../api/types';
-import { age, formatDateTime, maintenanceLabel } from '../lib/format';
+import { age, formatDateTime, maintenanceLabel, shortWorkOrder } from '../lib/format';
 import { Avatar, Icon } from './Icon';
 import { PriorityText, StatusBadge } from './ui';
 
@@ -41,8 +41,9 @@ export function TicketTable({
               <td className="title-cell">
                 <a className="title" href={`#${hrefFor(t)}`} title={t.title}>{t.title}</a>
                 {t.maintenance_work_order_id && (
-                  <span className="sub sub--icon">
-                    <Icon name="wrench" size={13} /> Work order {t.maintenance_work_order_id}
+                  <span className="sub sub--icon" title={`Work order ${t.maintenance_work_order_id}`}>
+                    <Icon name="wrench" size={13} /> Work order {shortWorkOrder(t.maintenance_work_order_id)}
+                    {t.maintenance_category ? ` · ${t.maintenance_category}` : ''}
                     {queue && t.maintenance_status ? ` · ${maintenanceLabel(t.maintenance_status)}` : ''}
                   </span>
                 )}

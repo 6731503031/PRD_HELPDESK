@@ -12,6 +12,8 @@ export type Ticket = {
   ticket_number: string;
   title: string;
   description: string;
+  /** Where the problem is (typed by the requester). Null on tickets made before locations existed. */
+  location: string | null;
   status: TicketStatus;
   priority: Priority;
   category_id: number;
@@ -22,6 +24,8 @@ export type Ticket = {
   maintenance_work_order_id: string | null;
   maintenance_status: string | null;
   maintenance_status_at: string | null;
+  /** Team 10 category chosen when the ticket was sent (Plumbing, Electrical, HVAC, Safety, Not sure). */
+  maintenance_category: string | null;
   ai_category_id: number | null;
   ai_category_name: string | null;
   ai_priority: Priority | null;

@@ -98,6 +98,14 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
         <div>
           <Panel title="Ticket information">
             <dl className="meta">
+              <dt>Location</dt>
+              <dd>{t.location ?? '–'}</dd>
+              {t.maintenance_category && (
+                <>
+                  <dt>Repair category</dt>
+                  <dd><span className="chip">{t.maintenance_category}</span></dd>
+                </>
+              )}
               <dt>Category</dt>
               <dd><span className="chip">{t.category_name ?? '–'}</span></dd>
               <dt>Urgency</dt>
@@ -153,18 +161,19 @@ function RequesterEdit({ ticket, onSaved }: { ticket: Detail; onSaved: () => voi
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(ticket.title);
   const [description, setDescription] = useState(ticket.description);
+  const [location, setLocation] = useState(ticket.location ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
-  const unchanged = title.trim() === ticket.title && description.trim() === ticket.description;
-  const tooShort = title.trim().length < 5 || description.trim().length < 10;
+  const unchanged = title.trim() === ticket.title && description.trim() === ticket.description && location.trim() === (ticket.location ?? '');
+  const tooShort = title.trim().length < 5 || description.trim().length < 10 || location.trim().length < 2;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      await api.updateTicket(ticket.id, { title: title.trim(), description: description.trim() });
+      await api.updateTicket(ticket.id, { title: title.trim(), description: description.trim(), location: location.trim() });
       setEditing(false);
       onSaved();
     } catch (err) {
@@ -177,6 +186,7 @@ function RequesterEdit({ ticket, onSaved }: { ticket: Detail; onSaved: () => voi
   const cancel = () => {
     setTitle(ticket.title);
     setDescription(ticket.description);
+    setLocation(ticket.location ?? '');
     setError(null);
     setEditing(false);
   };
@@ -202,6 +212,9 @@ function RequesterEdit({ ticket, onSaved }: { ticket: Detail; onSaved: () => voi
       </Field>
       <Field id="edit-description" label="Description" required>
         <textarea id="edit-description" className="textarea" value={description} maxLength={5000} onChange={(e) => setDescription(e.target.value)} />
+      </Field>
+      <Field id="edit-location" label="Location" required hint="Where the problem is, e.g. Building B, Room B-204">
+        <input id="edit-location" className="input" value={location} maxLength={200} onChange={(e) => setLocation(e.target.value)} />
       </Field>
       {error ? <ErrorNotice error={error} /> : null}
       <div className="form-actions">
@@ -262,7 +275,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const [repairTitle, setRepairTitle] = useState(ticket.title);
   const [repairDescription, setRepairDescription] = useState(ticket.description);
   // Team 10 also needs where to go (our tickets have no location field) and one of their 5 categories.
-  const [repairLocation, setRepairLocation] = useState('');
+  const [repairLocation, setRepairLocation] = useState(ticket.location ?? '');
   const [repairCategory, setRepairCategory] = useState<RepairCategory>(() => guessRepairCategory(`${ticket.title} ${ticket.description}`));
   /** Step ②: show the repair text so the admin can check or edit it before sending. */
   const [editRepair, setEditRepair] = useState(false);
@@ -333,6 +346,12 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
     <>
       <p className="small">
         Reference <code>{ticket.ticket_number}</code>
+        {/* The requester gave the location when reporting: shown here, not typed again. */}
+        {ticket.location && (
+          <>
+            {' · '}Location <strong>{ticket.location}</strong> <span className="muted">(from the requester)</span>
+          </>
+        )}
       </p>
       <Field id="repair-title" label="Repair title" required>
         <input id="repair-title" className="input" value={repairTitle} maxLength={150} onChange={(e) => setRepairTitle(e.target.value)} />
@@ -347,16 +366,19 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
             ))}
           </select>
         </Field>
-        <Field id="repair-location" label="Location" required hint="So the technician can find it, e.g. Building B, Room B-204">
-          <input
-            id="repair-location"
-            className="input"
-            value={repairLocation}
-            maxLength={200}
-            placeholder="e.g. Building B, Room B-204"
-            onChange={(e) => setRepairLocation(e.target.value)}
-          />
-        </Field>
+        {/* Only older tickets (made before locations existed) need the admin to type one. */}
+        {!ticket.location && (
+          <Field id="repair-location" label="Location" required hint="This older ticket has no location. E.g. Building B, Room B-204">
+            <input
+              id="repair-location"
+              className="input"
+              value={repairLocation}
+              maxLength={200}
+              placeholder="e.g. Building B, Room B-204"
+              onChange={(e) => setRepairLocation(e.target.value)}
+            />
+          </Field>
+        )}
       </div>
       <Field id="repair-description" label="Description" required hint="Remove any names, emails or phone numbers. Team 10 only receives the text in this box and the reference.">
         <textarea
@@ -499,6 +521,13 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
             <p className="small">
               Linked to work order <strong>{ticket.maintenance_work_order_id}</strong>
               <br />
+              {ticket.maintenance_category && (
+                <>
+                  Repair category: <strong>{ticket.maintenance_category}</strong>
+                  {ticket.location ? ` · Location: ${ticket.location}` : ''}
+                  <br />
+                </>
+              )}
               <span className="muted">Latest status: {maintenanceLabel(ticket.maintenance_status)}</span>
             </p>
           ) : s2 === 'todo' ? (

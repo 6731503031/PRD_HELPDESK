@@ -23,15 +23,17 @@ export const statusLabel = (value: string) => STATUS_LABEL[normalizeStatus(value
  * Status names still to be confirmed by Team 10; unknown values fall back to the raw text.
  */
 const MAINTENANCE_LABEL: Record<string, string> = {
-  reported: 'Sent to Maintenance',
-  assigned: 'Sent to Maintenance',
+  reported: 'Received by Maintenance',
+  assigned: 'Technician assigned',
   in_progress: 'Technician working on it',
   completed: 'Repair done, awaiting admin confirmation',
-  closed: 'Repair done, awaiting admin confirmation',
+  closed: 'Repair done, work order closed',
   cancelled: 'Work order cancelled by Maintenance',
 };
 export const maintenanceLabel = (value: string | null) =>
   value ? MAINTENANCE_LABEL[value] ?? value : 'Waiting for Maintenance';
+/** Work order ids are long UUIDs: show the first 8 characters in lists (the full id is in the title tooltip). */
+export const shortWorkOrder = (id: string) => (id.length > 12 ? `${id.slice(0, 8)}…` : id);
 export const isRepairDone = (value: string | null) => value === 'completed' || value === 'closed';
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
