@@ -15,6 +15,7 @@ check() { # name expected actual
 code() { curl -s -o /tmp/smoke_body -w '%{http_code}' "$@"; }
 
 check "health"                     200 "$(code "$BASE/health")"
+check "config"                     200 "$(code "$BASE/config")"
 check "no auth → 401"              401 "$(code "$BASE/tickets/me")"
 check "invalid JSON → 400"         400 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{bad')"
 check "missing fields → 422"       422 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{}')"
@@ -51,8 +52,35 @@ check "guest: /me"                 200 "$(code "$BASE/me" "${GH[@]}")"
 check "guest: not admin"           403 "$(code "$BASE/admin/stats" "${GH[@]}")"
 check "guest: cannot see Alice's ticket" 403 "$(code "$BASE/tickets/$ID" "${GH[@]}")"
 check "guest: forged admin role → 403" 403 "$(code "$BASE/tickets" -H "x-user-id: $GID" -H "x-user-role: admin")"
-check "link work order (P3)"       501 "$(code -X POST "$BASE/tickets/$ID/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"work_order_id":"WO-1"}')"
-check "webhook (P3)"               501 "$(code -X POST "$BASE/webhooks/maintenance" "${J[@]}" -d '{}')"
+echo "--- Team 10: link a work order + receive its webhook (local run: WO-MOCK-* ids, secret from .dev.vars) ---"
+SECRET="${MAINTENANCE_WEBHOOK_SECRET:-dev-secret}"
+hook() { # $1 = JSON body, $2 = optional signature override → HTTP code
+  local ts sig; ts=$(date +%s)
+  sig=${2:-$(printf '%s.%s' "$ts" "$1" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print $NF}')}
+  code -X POST "$BASE/webhooks/maintenance" "${J[@]}" -H "X-Timestamp: $ts" -H "X-Signature: $sig" -d "$1"
+}
+evt() { printf '{"eventId":"%s","type":"maintenance.status_changed","data":{"workOrderId":"%s","status":"%s"}}' "$1" "$2" "$3"; }
+tstate() { curl -s "$BASE/tickets/$ID2" "${ADMIN[@]}" | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"];print(d["status"]+"/"+str(d["maintenance_status"]))'; }
+RUN=$RANDOM; WO="WO-MOCK-$RUN"
+code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Projector in B-110 has no signal","description":"Screen stays blue since this morning","category_id":5,"urgency":"high"}' >/dev/null
+ID2=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])'); NUM2=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["ticket_number"])')
+check "link: requester → 403"            403 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ALICE[@]}" "${J[@]}" -d "{\"work_order_id\":\"$WO\"}")"
+check "link: our own TKT number → 400"   400 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"$NUM2\"}")"
+check "link: Team 10 unreachable → 503"  503 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"work_order_id":"WO-REAL-1"}')"
+check "link: work order → 200"           200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"$WO\"}")"
+check "link: a second one → 409"         409 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
+check "webhook: no signature → 401"     401 "$(code -X POST "$BASE/webhooks/maintenance" "${J[@]}" -d "$(evt "e-$RUN-0" "$WO" in_progress)")"
+check "webhook: bad signature → 401"     401 "$(hook "$(evt "e-$RUN-0" "$WO" in_progress)" deadbeef)"
+check "webhook: in_progress → 200"       200 "$(hook "$(evt "e-$RUN-1" "$WO" in_progress)")"
+check "  ticket is in_progress"          "in_progress/in_progress" "$(tstate)"
+check "webhook: same event again → 200"  200 "$(hook "$(evt "e-$RUN-1" "$WO" in_progress)")"
+check "webhook: completed → 200"         200 "$(hook "$(evt "e-$RUN-2" "$WO" completed)")"
+check "  status kept, repair is done"    "in_progress/completed" "$(tstate)"
+check "webhook: unknown work order → 202" 202 "$(hook "$(evt "e-$RUN-3" "WO-MOCK-none-$RUN" in_progress)")"
+check "webhook: unknown status → 400"    400 "$(hook "$(evt "e-$RUN-4" "$WO" teleported)")"
+check "webhook: not JSON → 400"          400 "$(hook 'not json')"
+check "webhook: cancelled → 200"         200 "$(hook "$(evt "e-$RUN-5" "$WO" cancelled)")"
+check "link: new one after cancel → 200" 200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
 check "AI suggest (P4)"            501 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"
 check "admin stats (P4)"           501 "$(code "$BASE/admin/stats" "${ADMIN[@]}")"
 echo "=== $pass passed, $fail failed ==="

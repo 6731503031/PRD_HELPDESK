@@ -20,6 +20,8 @@ ENVIRONMENT = "development"
 WELLBEING_API_URL = "https://wellbeing-intake.vercel.app/api/v1"
 # Team 10 base URL — fill in after Team 10 replies (P3)
 MAINTENANCE_API_URL = ""
+# Team 10 "report a repair" page for the admin button; may contain {ticketRef} (replaced by the ticket number)
+MAINTENANCE_PORTAL_URL = ""
 # Notification Hub endpoint for outbound events — empty = outbox only (P2)
 EVENT_HUB_URL = ""
 

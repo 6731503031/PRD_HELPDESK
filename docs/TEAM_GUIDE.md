@@ -54,12 +54,12 @@ git + ส่งงาน
 
 ### P3: API เชื่อมกับ Team 10
 - [ ] ส่งเอกสาร `docs/Helpdesk-Maintenance-Integration-Proposal.docx` ให้ Team 10 และตามคำตอบ (ข้อ 1, 2, 3, 6, 7, 9 ต้องได้ก่อน)
-- [ ] **F29** `maintenance/signature.ts` → `verifyWebhook()` แล้วลบ `.skip` ชุด signature ใน `backend/test/maintenance.test.ts`
-- [ ] **F14** `maintenance/mapping.ts` → `mapWorkOrderStatus()` ใช้สถานะจริงของ Team 10
-- [ ] **F13** `maintenance/client.ts` + route `POST /tickets/:id/link-maintenance`
-- [ ] **F14** route `POST /webhooks/maintenance` ตาม TODO 8 ขั้น
+- [x] **F29** `maintenance/signature.ts` → `verifyWebhook()` แล้วลบ `.skip` ชุด signature ใน `backend/test/maintenance.test.ts`
+- [x] **F14** `maintenance/mapping.ts` → `mapWorkOrderStatus()` (ชื่อสถานะยังเป็นที่เราเดา: รอ Team 10 ยืนยันตามตารางในเอกสาร "สิ่งที่ Team 14 ขอจาก Team 10")
+- [x] **F13** `maintenance/client.ts` + route `POST /tickets/:id/link-maintenance` (ยังไม่มี `MAINTENANCE_API_URL` → ใช้ใบงานจำลอง `WO-MOCK-*` ได้เฉพาะเมื่อ `ENVIRONMENT=development`)
+- [x] **F14** route `POST /webhooks/maintenance` (ตรวจลายเซ็น, กันซ้ำ, หาคำร้องจากเลขใบงาน, อัปเดตแบบ batch เดียว)
 - [ ] **F30** secret: `cp dev.vars.example .dev.vars` (เครื่องตัวเอง) · `wrangler secret put MAINTENANCE_WEBHOOK_SECRET` (production)
-- [ ] ทดสอบด้วย mock: `MAINTENANCE_WEBHOOK_SECRET=dev-secret npm run mock:maintenance -- WO-0045 in_progress`
+- [x] ทดสอบด้วย mock: ผูก `WO-MOCK-1` ในหน้าแอดมินก่อน แล้ว `MAINTENANCE_WEBHOOK_SECRET=dev-secret npm run mock:maintenance -- WO-MOCK-1 in_progress` (ชุด `bash scripts/smoke.sh` ครอบคลุมแล้ว)
 - [ ] เทสต์ร่วม 8 ข้อกับ Team 10 เก็บ screenshot + correlation ID (ไม่พร้อม → ใช้ mock)
 
 ### P4: AI + Admin API

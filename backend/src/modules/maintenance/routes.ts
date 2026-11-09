@@ -3,44 +3,133 @@
  * Owner: P3 (Maintenance Integration)
  *
  *   POST /tickets/:id/link-maintenance   { work_order_id }   admin only         (F13)
- *   POST /webhooks/maintenance           Team 10 → us, HMAC-signed           (F14, F29)
+ *   POST /webhooks/maintenance           Team 10 -> us, HMAC-signed             (F14, F29)
  *
- * The UI already calls link-maintenance and shows `maintenance_status`
- * on the ticket (public/js/pages/ticket-detail.js).
+ * Two numbers, one pair: the admin gives Team 10 our ticket number (TKT-…) when reporting the repair in THEIR
+ * system, and gets a work order id (WO-…) back, which is what is linked here. We store only that id and the
+ * last status (BR-04). Nothing personal crosses the boundary.
  */
 import { Hono } from 'hono';
 import type { AppEnv } from '../../core/env';
-import { notImplemented } from '../../core/http';
+import { requireRole } from '../../core/auth';
+import { ApiError, badRequest, conflict, notFound, parseId, readJson } from '../../core/http';
+import { publishEvent } from '../events/publish';
+import { getTicket, recordStatus, updateTicket } from '../tickets/repo';
+import { fetchWorkOrder } from './client';
+import { parseWebhookEvent, validateWorkOrderId } from './envelope';
+import { mapWorkOrderStatus, nextTicketStatus } from './mapping';
+import { verifyWebhook } from './signature';
 
 export const maintenanceRoutes = new Hono<AppEnv>();
 
-/**
- * TODO(P3, F13) — mounted behind requireAuth, so c.get('user') exists.
- *  1. requireRole('admin') (core/auth.ts)
- *  2. body.work_order_id: non-empty string, ≤ 64 chars → else 400
- *  3. ticket must exist (404); if it already has an active work order → 409 (PRD §6.2: at most one)
- *  4. fetchWorkOrder(...) → not_found → 400 ; unavailable → 503 (Helpdesk keeps working)
- *  5. UPDATE tickets SET maintenance_work_order_id, maintenance_status = workOrder.status
- *  6. publishEvent(env, 'ticket.work_order_linked', ticket, { workOrderId })
- *  7. 200 { ticket_number, maintenance_work_order_id, work_order_status }
- */
-maintenanceRoutes.post('/tickets/:id/link-maintenance', async () => {
-  throw notImplemented('F13 Link Maintenance Work Order', 'P3');
+/** PRD §6.2: a ticket has at most one ACTIVE work order. A cancelled one no longer counts, so the admin can link a new one. */
+const hasActiveWorkOrder = (t: { maintenance_work_order_id: string | null; maintenance_status: string | null }) =>
+  !!t.maintenance_work_order_id && t.maintenance_status !== 'cancelled';
+
+// ---------- F13 Link ----------
+maintenanceRoutes.post('/tickets/:id/link-maintenance', requireRole('admin'), async (c) => {
+  const user = c.get('user');
+  const checked = validateWorkOrderId((await readJson<{ work_order_id?: unknown }>(c)).work_order_id);
+  if (!checked.ok) throw badRequest(checked.message);
+
+  const ticket = await getTicket(c.env.DB, parseId(c.req.param('id')));
+  if (!ticket) throw notFound('ไม่พบคำร้อง');
+  if (ticket.status === 'resolved' || ticket.status === 'closed') throw conflict('คำร้องนี้ปิดแล้ว ผูกใบงานไม่ได้');
+  if (hasActiveWorkOrder(ticket)) throw conflict(`คำร้องนี้ผูกกับใบงาน ${ticket.maintenance_work_order_id} อยู่แล้ว`);
+
+  const other = await c.env.DB.prepare('SELECT ticket_number FROM tickets WHERE maintenance_work_order_id = ? AND id != ?')
+    .bind(checked.id, ticket.id)
+    .first<{ ticket_number: string }>();
+  if (other) throw conflict(`ใบงาน ${checked.id} ผูกกับคำร้อง ${other.ticket_number} อยู่แล้ว`);
+
+  // Ask Team 10 whether it exists (3 s timeout). They being down must not break anything else in Helpdesk.
+  const found = await fetchWorkOrder(c.env, checked.id, c.get('correlationId'));
+  if (found.kind === 'not_found') throw badRequest(`ไม่พบใบงาน ${checked.id} ในระบบ Team 10`);
+  if (found.kind === 'unavailable') {
+    console.warn(JSON.stringify({ level: 'warn', msg: 'maintenance lookup failed', reason: found.reason, workOrderId: checked.id }));
+    throw new ApiError(503, 'ServiceUnavailable', 'เชื่อมต่อระบบ Team 10 ไม่ได้ ลองใหม่ภายหลัง (ส่วนอื่นของ Helpdesk ใช้งานได้ตามปกติ)', { reason: found.reason });
+  }
+
+  await updateTicket(c.env.DB, ticket.id, {
+    maintenance_work_order_id: checked.id,
+    maintenance_status: found.workOrder.status,
+    maintenance_status_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+  });
+  await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `ผูกใบงานซ่อม ${checked.id}`);
+  await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: checked.id });
+
+  return c.json({
+    ticket_number: ticket.ticket_number,
+    maintenance_work_order_id: checked.id,
+    work_order_status: found.workOrder.status,
+  });
 });
 
-/**
- * TODO(P3, F14 + F29) — NOT behind requireAuth (Team 10 is a service, not a user).
- *  1. rawBody = await c.req.text()   (read raw text BEFORE parsing — the signature covers the raw bytes)
- *  2. verifyWebhook({ secret: c.env.MAINTENANCE_WEBHOOK_SECRET, timestamp: X-Timestamp, signature: X-Signature, rawBody, now })
- *     → not ok → 401
- *  3. JSON.parse → check envelope: eventId, type === 'maintenance.status_changed', data.workOrderId, data.status → else 400
- *  4. INSERT OR IGNORE INTO processed_events → if 0 rows changed → duplicate → 200 { duplicate: true }
- *  5. find ticket by maintenance_work_order_id → none → 202 { linked: false }
- *  6. effect = mapWorkOrderStatus(data.status) → null → 400
- *  7. UPDATE maintenance_status / maintenance_status_at ; if effect.ticketStatus → update status
- *     + recordStatus(db, id, from, to, null, 'maintenance', effect.label)   (tickets/repo.ts)
- *  8. 200 { received: true }
- */
-maintenanceRoutes.post('/webhooks/maintenance', async () => {
-  throw notImplemented('F14 Maintenance webhook', 'P3');
+// ---------- F14 + F29 Webhook (Team 10 is a service, not a user: no requireAuth) ----------
+maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
+  // The signature covers the RAW bytes, so read the text before anything parses it.
+  const rawBody = await c.req.text();
+  const verdict = await verifyWebhook({
+    secret: c.env.MAINTENANCE_WEBHOOK_SECRET,
+    timestamp: c.req.header('x-timestamp'),
+    signature: c.req.header('x-signature'),
+    rawBody,
+    now: new Date(),
+  });
+  if (!verdict.ok) {
+    if (verdict.reason === 'not configured') throw new ApiError(503, 'ServiceUnavailable', 'ฝั่ง Helpdesk ยังไม่ได้ตั้งค่า secret สำหรับ webhook');
+    throw new ApiError(401, 'Unauthorized', `ลายเซ็นไม่ถูกต้อง (${verdict.reason})`);
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    throw badRequest('ซองข้อมูลไม่ใช่ JSON');
+  }
+  const parsed = parseWebhookEvent(body);
+  if (!parsed.ok) throw badRequest(parsed.message);
+  const { eventId, type, workOrderId, status } = parsed.event;
+
+  const effect = mapWorkOrderStatus(status);
+  if (!effect) throw badRequest(`ไม่รู้จักสถานะ ${status}`);
+
+  // Idempotency: an event we already applied changes nothing and is answered 200.
+  const seen = await c.env.DB.prepare('SELECT 1 AS x FROM processed_events WHERE event_id = ?').bind(eventId).first();
+  if (seen) return c.json({ received: true, duplicate: true });
+
+  const ticket = await c.env.DB.prepare(
+    `SELECT id, ticket_number, status FROM tickets WHERE maintenance_work_order_id = ?`,
+  )
+    .bind(workOrderId)
+    .first<{ id: number; ticket_number: string; status: 'open' | 'in_progress' | 'resolved' | 'closed' }>();
+  if (!ticket) return c.json({ received: true, linked: false }, 202); // valid event, no ticket linked to this work order
+
+  const next = nextTicketStatus(ticket.status, effect);
+  const sets = ['maintenance_status = ?', "maintenance_status_at = datetime('now')", "updated_at = datetime('now')"];
+  const values: unknown[] = [status];
+  if (next) {
+    sets.push('status = ?');
+    values.push(next);
+  }
+
+  // One atomic batch: the event id is stored only if the ticket update and its history row also succeed.
+  try {
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO processed_events (event_id, source, type) VALUES (?, 'maintenance', ?)`).bind(eventId, type),
+      c.env.DB.prepare(`UPDATE tickets SET ${sets.join(', ')} WHERE id = ?`).bind(...values, ticket.id),
+      c.env.DB.prepare(
+        `INSERT INTO ticket_status_history (ticket_id, from_status, to_status, changed_by, source, note) VALUES (?, ?, ?, NULL, 'maintenance', ?)`,
+      ).bind(ticket.id, ticket.status, next ?? ticket.status, effect.label),
+    ]);
+  } catch (err) {
+    if (String(err).includes('UNIQUE')) return c.json({ received: true, duplicate: true }); // the same event raced us
+    throw err;
+  }
+
+  if (next) {
+    const updated = await getTicket(c.env.DB, ticket.id);
+    if (updated) await publishEvent(c.env, 'ticket.status_changed', updated, { from: ticket.status, source: 'maintenance' });
+  }
+  return c.json({ received: true });
 });

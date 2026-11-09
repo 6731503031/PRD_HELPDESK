@@ -13,6 +13,10 @@ export type Bindings = {
   WELLBEING_API_URL: string;
   /** Team 10 Maintenance base URL, e.g. https://…/api/v1 — empty until Team 10 confirms. */
   MAINTENANCE_API_URL: string;
+  /** Link to Team 10's report-a-repair page, shown to the admin as a button. Empty until Team 10 gives it (see core/config.ts). */
+  MAINTENANCE_PORTAL_URL?: string;
+  /** Secret (optional): credential for calling Team 10's API, sent as a Bearer token until the scheme is agreed. */
+  MAINTENANCE_API_KEY?: string;
   /** Secret: shared HMAC key for Team 10 webhooks. `wrangler secret put MAINTENANCE_WEBHOOK_SECRET` */
   MAINTENANCE_WEBHOOK_SECRET?: string;
   /** Where outbound events are POSTed (Notification Hub). Empty = store in outbox only. */

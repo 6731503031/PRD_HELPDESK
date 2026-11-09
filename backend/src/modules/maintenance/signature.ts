@@ -36,15 +36,19 @@ export type VerifyInput = {
 };
 
 /**
- * TODO(P3, F29):
- *  - missing secret            → { ok: false, reason: 'not configured' }
- *  - missing timestamp/signature → { ok: false, reason: 'missing headers' }
- *  - timestamp not a number or older/newer than MAX_SKEW_SECONDS → { ok: false, reason: 'stale' }
- *  - expected = await hmacHex(secret, `${timestamp}.${rawBody}`)
- *  - safeEqual(expected, signature.toLowerCase()) ? { ok: true } : { ok: false, reason: 'bad signature' }
- * Then un-skip test/maintenance.test.ts.
+ * F29: accept only a correctly signed, fresh event.
+ *  - missing secret              -> not ok ('not configured')
+ *  - missing timestamp/signature -> not ok ('missing headers')
+ *  - timestamp not a number, or older/newer than MAX_SKEW_SECONDS -> not ok ('stale')
+ *  - expected = HMAC-SHA256(secret, `${timestamp}.${rawBody}`), compared in constant time
+ * Rejecting is the safe default: every doubt answers "not ok".
  */
 export async function verifyWebhook(input: VerifyInput): Promise<{ ok: boolean; reason?: string }> {
-  void input;
-  return { ok: false, reason: 'not implemented' }; // TODO(P3, F29) — rejecting everything is the safe default
+  if (!input.secret) return { ok: false, reason: 'not configured' };
+  if (!input.timestamp || !input.signature) return { ok: false, reason: 'missing headers' };
+  if (!/^\d{1,12}$/.test(input.timestamp)) return { ok: false, reason: 'stale' };
+  const skew = Math.abs(input.now.getTime() / 1000 - Number(input.timestamp));
+  if (skew > MAX_SKEW_SECONDS) return { ok: false, reason: 'stale' };
+  const expected = await hmacHex(input.secret, `${input.timestamp}.${input.rawBody}`);
+  return safeEqual(expected, input.signature.trim().toLowerCase()) ? { ok: true } : { ok: false, reason: 'bad signature' };
 }
