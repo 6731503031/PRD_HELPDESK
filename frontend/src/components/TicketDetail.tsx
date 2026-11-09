@@ -258,6 +258,9 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   const [priority, setPriority] = useState<Priority>(ticket.priority);
   const [categoryId, setCategoryId] = useState<number>(ticket.category_id);
   const [workOrder, setWorkOrder] = useState('');
+  const [repairTitle, setRepairTitle] = useState(ticket.title);
+  const [repairDescription, setRepairDescription] = useState(ticket.description);
+  const [confirmSend, setConfirmSend] = useState(false);
   const [note, setNote] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -272,6 +275,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
       await action();
       setResult({ ok: true, text: done });
       setConfirming(false);
+      setConfirmSend(false);
       onChanged();
     } catch (err) {
       setResult({ ok: false, error: err });
@@ -300,13 +304,15 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
   // Where the admin is: ① until the work starts, ② only for repairs, ③ once work is under way.
   const started = ticket.status !== 'open';
   const s1: StepState = started ? 'done' : 'current';
-  const s2: StepState = linked ? 'done' : ticket.ai_route === 'maintenance' || cancelled ? 'current' : 'optional';
+  // ② needs ① first: a repair is sent only after the admin has started the work (UC-07 → UC-08).
+  const s2: StepState = linked ? 'done' : !started ? 'todo' : ticket.ai_route === 'maintenance' || cancelled ? 'current' : 'optional';
   const repairOpen = s2 !== 'optional' || showRepair; // not a repair? the step stays folded
   const portal = settings?.maintenance_portal_url
     ? settings.maintenance_portal_url.replace('{ticketRef}', encodeURIComponent(ticket.ticket_number))
     : null;
   const woText = workOrder.trim();
-  const woProblem = /^tkt-/i.test(woText) ? 'นี่คือเลขคำร้องของเรา ให้ใส่เลขใบงานที่ Team 10 ออกให้ (ขึ้นต้นด้วย WO-)' : null;
+  const woProblem = /^tkt-/i.test(woText) ? 'นี่คือเลขคำร้องของเรา ให้วางเลขใบงานที่ Team 10 ออกให้' : null;
+  const repairReady = repairTitle.trim().length >= 3 && repairDescription.trim().length >= 5;
   const s3: StepState = started ? 'current' : 'todo';
 
   return (
@@ -367,13 +373,20 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
             n={2}
             state={s2}
             label="ส่งต่อฝ่ายซ่อมบำรุง"
-            stateLabel={s2 === 'done' ? 'ผูกใบงานแล้ว' : s2 === 'current' ? 'ระบบแนะนำให้ทำ' : 'เฉพาะงานซ่อม'}
+            stateLabel={
+              s2 === 'done' ? 'ผูกใบงานแล้ว' : s2 === 'todo' ? 'ทำหลังเริ่มดำเนินการ' : s2 === 'current' ? 'ระบบแนะนำให้ทำ' : 'เฉพาะงานซ่อม'
+            }
           />
           {linked ? (
             <p className="small">
               ผูกกับใบงาน <strong>{ticket.maintenance_work_order_id}</strong> แล้ว
               <br />
               <span className="muted">สถานะล่าสุด: {maintenanceLabel(ticket.maintenance_status)}</span>
+            </p>
+          ) : s2 === 'todo' ? (
+            <p className="step-desc">
+              ถ้าเป็นงานซ่อม กด "เริ่มดำเนินการ" ในขั้นที่ 1 ก่อน แล้วจึงส่งต่อให้ Team 10 ที่ขั้นนี้
+              {ticket.ai_route === 'maintenance' && ' (ระบบแนะนำว่าเป็นงานซ่อม)'}
             </p>
           ) : !repairOpen ? (
             <>
@@ -387,46 +400,104 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
           ) : (
             <>
               <p className="step-desc">
-                แจ้งซ่อมในระบบของ Team 10 ก่อน เขาจะให้ "เลขใบงาน" กลับมา แล้วนำเลขนั้นมาผูกที่นี่
-                หลังผูก สถานะงานซ่อมจะอัปเดตเองและผู้แจ้งเห็นในคำร้อง
+                ตรวจข้อความงานซ่อมด้านล่าง แล้วกดส่ง ระบบจะสร้างใบงานที่ Team 10 และผูกกับคำร้องนี้ให้เอง
+                ไม่ต้องเปิดระบบของ Team 10 หลังส่ง สถานะงานซ่อมจะอัปเดตเองและผู้แจ้งเห็นในคำร้อง
               </p>
               {cancelled && (
                 <Notice tone="warn" title={`ใบงาน ${ticket.maintenance_work_order_id} ถูกยกเลิกโดยฝ่ายซ่อมบำรุง`}>
-                  <p className="small">ผูกใบงานใหม่ได้ หรือข้ามไปขั้นที่ 3</p>
+                  <p className="small">ส่งแจ้งซ่อมใหม่ได้ หรือข้ามไปขั้นที่ 3</p>
                 </Notice>
               )}
-              <div className="handoff">
-                <div className="handoff__box">
-                  <span className="handoff__tag">ก. ทำในระบบของ Team 10</span>
-                  <p className="small">
-                    แจ้งซ่อม แล้วใส่เลขอ้างอิงของเรา
+              <div className="handoff__box handoff__box--here">
+                <span className="handoff__tag handoff__tag--here">ข้อมูลที่จะส่งให้ Team 10</span>
+                <p className="small">
+                  เลขอ้างอิง <code>{ticket.ticket_number}</code>
+                </p>
+                <Field id="repair-title" label="หัวเรื่องงานซ่อม" required>
+                  <input
+                    id="repair-title"
+                    className="input"
+                    value={repairTitle}
+                    maxLength={150}
+                    onChange={(e) => {
+                      setRepairTitle(e.target.value);
+                      setConfirmSend(false);
+                    }}
+                  />
+                </Field>
+                <Field
+                  id="repair-description"
+                  label="รายละเอียด"
+                  required
+                  hint="ระบุสถานที่ให้ช่างหาเจอ (เช่น อาคาร ห้อง) และลบชื่อ อีเมล หรือเบอร์โทรออก Team 10 ได้รับแค่ข้อความนี้กับเลขอ้างอิง"
+                >
+                  <textarea
+                    id="repair-description"
+                    className="textarea textarea--short"
+                    value={repairDescription}
+                    maxLength={5000}
+                    onChange={(e) => {
+                      setRepairDescription(e.target.value);
+                      setConfirmSend(false);
+                    }}
+                  />
+                </Field>
+                <div className="inline">
+                  {confirmSend ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={!!busy || !repairReady}
+                        onClick={() =>
+                          run(
+                            'send',
+                            () => api.sendWorkOrder(ticket.id, { title: repairTitle.trim(), description: repairDescription.trim() }),
+                            'ส่งแจ้งซ่อมแล้ว Team 10 สร้างใบงานและผูกกับคำร้องนี้ให้แล้ว',
+                          )
+                        }
+                      >
+                        {busy === 'send' ? 'กำลังส่ง…' : 'ยืนยันส่งให้ Team 10'}
+                      </button>
+                      <button className="btn btn--secondary" disabled={!!busy} onClick={() => setConfirmSend(false)}>
+                        ยกเลิก
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn" disabled={!!busy || !repairReady} onClick={() => setConfirmSend(true)}>
+                      ส่งแจ้งซ่อมไป Team 10
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Backup way: the admin already has a work order id (e.g. reported in Team 10's own screen). */}
+              <details className="fold mt-3">
+                <summary className="small">มีเลขใบงานจาก Team 10 อยู่แล้ว? ผูกเอง</summary>
+                <div className="fold__body">
+                  <p className="small muted">
+                    ใช้เมื่อแจ้งซ่อมในระบบของ Team 10 ไปแล้ว (ใส่เลขอ้างอิง
                     <span className="copy-ref">
                       <code>{ticket.ticket_number}</code>
                       <button type="button" className="btn btn--plain btn--small" onClick={copyRef}>
                         {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
                       </button>
                     </span>
+                    ) หรือเมื่อส่งจากที่นี่ไม่ได้
+                    {portal && (
+                      <>
+                        {' '}
+                        <a href={portal} target="_blank" rel="noopener noreferrer">
+                          เปิดระบบ Team 10 ↗
+                        </a>
+                      </>
+                    )}
                   </p>
-                  <p className="small muted">เขาจะให้ "เลขใบงาน" กลับมา (ขึ้นต้นด้วย WO-)</p>
-                  {portal ? (
-                    <div>
-                      <a className="btn btn--secondary btn--small" href={portal} target="_blank" rel="noopener noreferrer">
-                        เปิดระบบ Team 10 ↗
-                      </a>
-                    </div>
-                  ) : (
-                    <p className="small muted">ยังไม่มีลิงก์ระบบ Team 10 (รอ Team 10 ให้ลิงก์ แล้วตั้งค่า MAINTENANCE_PORTAL_URL)</p>
-                  )}
-                </div>
-                <span className="handoff__arrow" aria-hidden="true">↓</span>
-                <div className="handoff__box handoff__box--here">
-                  <span className="handoff__tag handoff__tag--here">ข. ทำที่นี่</span>
-                  <Field id="work-order" label="เลขใบงานที่ Team 10 ให้มา" hint="ขึ้นต้นด้วย WO- ไม่ใช่เลข TKT- ของเรา ระบบจะตรวจกับ Team 10 ว่ามีใบงานนี้จริงก่อนบันทึก" error={woProblem ?? undefined}>
+                  <Field id="work-order" label="เลขใบงานที่ Team 10 ให้มา" hint="วางเลขใบงาน (UUID) ไม่ใช่เลข TKT- ของเรา ระบบจะตรวจกับ Team 10 ก่อนบันทึก" error={woProblem ?? undefined}>
                     <div className="inline">
                       <input
                         id="work-order"
                         className="input"
-                        placeholder="เช่น WO-0045"
+                        placeholder="เช่น 7f3c2a9e-1b4d-4c8e-9a21-5d6e7f8a9b01"
                         value={workOrder}
                         aria-invalid={!!woProblem}
                         onChange={(e) => setWorkOrder(e.target.value)}
@@ -441,7 +512,7 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                     </div>
                   </Field>
                 </div>
-              </div>
+              </details>
             </>
           )}
         </li>

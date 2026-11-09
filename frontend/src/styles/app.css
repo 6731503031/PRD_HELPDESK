@@ -460,6 +460,11 @@ fieldset { border: 0; margin: 0; padding: 0; }
   background: var(--subtle); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--navy);
 }
 .confirm { display: grid; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--warn-bg); }
+/* Backup way under step ②: folded until the admin needs it */
+.fold summary { cursor: pointer; color: var(--brand); width: fit-content; }
+.fold summary:hover { color: var(--brand-dark); }
+.fold__body { display: grid; gap: var(--s2); margin-top: var(--s2); padding: var(--s3) var(--s4); border: 1px dashed var(--line); border-radius: var(--r-md); }
+.handoff__box code { font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; }
 
 
 /* --------------------------------------------------------------------------
