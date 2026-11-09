@@ -92,11 +92,23 @@ CREATE TABLE IF NOT EXISTS ticket_comments (
   ticket_id INTEGER NOT NULL,
   author_id INTEGER NOT NULL,                      -- Identity ref
   content TEXT NOT NULL,
-  visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','internal')),
+  visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','internal')),  -- legacy: internal notes cut in PRD v1.1, API always writes 'public'
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_comments_ticket ON ticket_comments(ticket_id, created_at);
+
+-- ---------------------------------------------------------------------
+-- Guest requesters (Identity stub, PRD §20): self-declared display name, ids start at 1000.
+-- Not an account: nothing is verified. Static users (ids 1-6) live in backend/src/core/identity.ts.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id INTEGER PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  email TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- ---------------------------------------------------------------------
 -- Inbound webhook dedupe (PRD §18: duplicate event handling)

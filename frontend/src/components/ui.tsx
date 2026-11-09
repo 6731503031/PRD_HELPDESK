@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { ApiError, NotReadyError } from '../api/client';
 import type { Priority, TicketStatus } from '../api/types';
-import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER } from '../lib/format';
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, stageOf } from '../lib/format';
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
   return <span className={`status status--${status}`}>{STATUS_LABEL[status]}</span>;
@@ -12,21 +12,29 @@ export function PriorityText({ priority }: { priority: Priority }) {
   return <span className={`priority priority--${priority}`}>{PRIORITY_LABEL[priority]}</span>;
 }
 
-/** Parcel-style progress line: Open → Assigned → In progress → Resolved → Closed (PRD §14). */
+/**
+ * Progress line: Open (blue) → In progress (amber) → Resolved (green).
+ * Each step keeps its own colour once reached; when the ticket is resolved (or closed) every step is ticked.
+ */
 export function StatusTrack({ status }: { status: TicketStatus }) {
-  const current = STATUS_ORDER.indexOf(status);
+  const shown = stageOf(status);
+  const current = STATUS_ORDER.indexOf(shown);
+  const finished = shown === 'resolved';
   return (
-    <ol className="track" aria-label={`สถานะปัจจุบัน: ${STATUS_LABEL[status]}`}>
-      {STATUS_ORDER.map((s, i) => (
-        <li
-          key={s}
-          data-step={i < current ? '✓' : String(i + 1)}
-          className={i < current ? 'is-done' : i === current ? 'is-current' : ''}
-          aria-current={i === current ? 'step' : undefined}
-        >
-          {STATUS_LABEL[s]}
-        </li>
-      ))}
+    <ol className="track" aria-label={`สถานะปัจจุบัน: ${STATUS_LABEL[shown]}`}>
+      {STATUS_ORDER.map((s, i) => {
+        const done = i < current || (finished && i === current);
+        return (
+          <li
+            key={s}
+            data-step={done ? '✓' : String(i + 1)}
+            className={`track__${s}${done ? ' is-done' : i === current ? ' is-current' : ''}`}
+            aria-current={i === current ? 'step' : undefined}
+          >
+            {STATUS_LABEL[s]}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -60,11 +68,48 @@ export function ErrorNotice({ error }: { error: unknown }) {
   );
 }
 
-export function Loading({ label = 'กำลังโหลด…' }: { label?: string }) {
+/**
+ * Loading placeholder. Skeleton shapes match what is coming, so the screen never looks empty.
+ *   text      → a few lines (default)
+ *   table     → list rows
+ *   dashboard → number cards + list rows
+ *   detail    → ticket workspace (main + side column)
+ */
+export function Loading({ label = 'กำลังโหลด…', variant = 'text' }: { label?: string; variant?: 'text' | 'table' | 'dashboard' | 'detail' }) {
+  const lines = (n: number) =>
+    Array.from({ length: n }, (_, i) => <span key={i} className="sk sk--line" style={{ width: `${92 - ((i * 17) % 40)}%` }} />);
+  const rows = (n: number) =>
+    Array.from({ length: n }, (_, i) => (
+      <div key={i} className="sk-row">
+        <span className="sk sk--chip" />
+        <span className="sk sk--line" style={{ width: `${70 - ((i * 13) % 30)}%` }} />
+        <span className="sk sk--chip" />
+      </div>
+    ));
   return (
-    <p className="muted" role="status" aria-live="polite">
-      {label}
-    </p>
+    <div className={`skeleton skeleton--${variant}`} role="status" aria-live="polite" aria-busy="true">
+      <span className="visually-hidden">{label}</span>
+      {variant === 'text' && <div className="sk-stack">{lines(3)}</div>}
+      {variant === 'table' && <div className="sk-stack">{rows(6)}</div>}
+      {variant === 'dashboard' && (
+        <>
+          <div className="stats">{Array.from({ length: 6 }, (_, i) => <span key={i} className="sk sk--card" />)}</div>
+          <div className="panel"><div className="panel__body sk-stack">{rows(7)}</div></div>
+        </>
+      )}
+      {variant === 'detail' && (
+        <>
+          <div className="sk-stack mb-5">
+            <span className="sk sk--line sk--short" />
+            <span className="sk sk--title" />
+          </div>
+          <div className="layout-ticket">
+            <div className="panel"><div className="panel__body sk-stack">{lines(5)}</div></div>
+            <div className="panel"><div className="panel__body sk-stack">{lines(6)}</div></div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -96,7 +141,20 @@ export function Field({
   );
 }
 
-export function Panel({ title, action, quiet, children }: { title?: string; action?: ReactNode; quiet?: boolean; children: ReactNode }) {
+export function Panel({
+  title,
+  action,
+  quiet,
+  flush,
+  children,
+}: {
+  title?: string;
+  action?: ReactNode;
+  quiet?: boolean;
+  /** true = children draw their own padding (full-bleed lists) */
+  flush?: boolean;
+  children: ReactNode;
+}) {
   return (
     <section className={`panel${quiet ? ' panel--quiet' : ''}`} aria-label={title}>
       {title && (
@@ -105,7 +163,7 @@ export function Panel({ title, action, quiet, children }: { title?: string; acti
           {action}
         </div>
       )}
-      <div className="panel__body">{children}</div>
+      {flush ? children : <div className="panel__body">{children}</div>}
     </section>
   );
 }

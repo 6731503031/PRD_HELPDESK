@@ -23,7 +23,12 @@
  *   - In production this becomes `await identityProvider.verify(jwt)` etc.
  */
 
-export type Role = 'customer' | 'agent' | 'admin';
+/**
+ * Two roles only (PRD v1.1):
+ *   customer = requester (ผู้แจ้ง)
+ *   admin    = runs the Helpdesk: categories, dashboard, chat, Team 10 link, resolve
+ */
+export type Role = 'customer' | 'admin';
 
 export interface IdentityRef {
   /** The external id Identity issued (campus SSO subject). */
@@ -44,8 +49,6 @@ export interface IdentityRef {
 export const USER_DIRECTORY: Record<number, IdentityRef> = {
   1: { externalId: 1, displayName: 'Alice Customer', role: 'customer', email: 'alice@uni.ac.th' },
   2: { externalId: 2, displayName: 'Bob Customer',   role: 'customer', email: 'bob@uni.ac.th' },
-  3: { externalId: 3, displayName: 'Somchai Agent',  role: 'agent',    email: 'somchai@uni.ac.th' },
-  4: { externalId: 4, displayName: 'Suda Agent',     role: 'agent',    email: 'suda@uni.ac.th' },
   5: { externalId: 5, displayName: 'Admin User',     role: 'admin',    email: 'admin@uni.ac.th' },
   // ─── Test users (added 2026-08-22 — dev only) ───
   6: { externalId: 6, displayName: 'Charlie Customer', role: 'customer', email: 'charlie@uni.ac.th' },
@@ -61,12 +64,11 @@ export function verify(externalId: number): IdentityRef | null {
   return USER_DIRECTORY[externalId] ?? null;
 }
 
-/** Helper for route handlers. */
-export function isAgentOrAdmin(role: Role): boolean {
-  return role === 'agent' || role === 'admin';
-}
+/** Guests (anonymous requesters, see profiles.ts) get ids from here up; the static directory stays below. */
+export const GUEST_ID_MIN = 1000;
+export const isGuestId = (id: number) => Number.isInteger(id) && id >= GUEST_ID_MIN;
 
-/** Helper for validation in POST /tickets/:id/assign. */
-export function isAssignableAgent(role: Role): boolean {
-  return role === 'agent' || role === 'admin';
+/** Helper for route handlers. */
+export function isAdmin(role: Role): boolean {
+  return role === 'admin';
 }

@@ -1,10 +1,9 @@
 /**
- * PRD §18 required tests #1 Create, #2 Ownership, #3 Assignment, #5 Resolve
+ * PRD §18 required tests #1 Create, #2 Ownership, #3 Admin-only triage, #5 Resolve
  * Owner: P1
  */
 import { describe, expect, it } from 'vitest';
 import {
-  canAssign,
   canResolve,
   canTransition,
   canViewTicket,
@@ -15,7 +14,7 @@ import {
 
 const alice = { id: 1, role: 'customer' as const, displayName: 'Alice' };
 const bob = { id: 2, role: 'customer' as const, displayName: 'Bob' };
-const agent = { id: 3, role: 'agent' as const, displayName: 'Somchai' };
+const admin = { id: 5, role: 'admin' as const, displayName: 'Admin' };
 
 describe('#1 Create ticket (FR-03)', () => {
   it('accepts subject, description, category and urgency', () => {
@@ -42,43 +41,40 @@ describe('#2 Ownership / access control (FR-07, BR-01, BR-02)', () => {
     expect(canViewTicket(bob, { customer_id: 1 })).toBe(false);
   });
 
-  it('lets agents see every ticket', () => {
-    expect(canViewTicket(agent, { customer_id: 1 })).toBe(true);
+  it('lets the admin see every ticket', () => {
+    expect(canViewTicket(admin, { customer_id: 1 })).toBe(true);
   });
 
-  it('stops requesters from changing status, priority or assignee', () => {
+  it('stops requesters from changing status or priority', () => {
     const fields = editableFields('customer');
     expect(fields).toEqual(['title', 'description']);
     expect(fields).not.toContain('status');
-    expect(editableFields('agent')).toEqual(expect.arrayContaining(['status', 'priority', 'assigned_agent_id']));
   });
 });
 
-describe('#3 Assignment (FR-09)', () => {
-  it('allows agents to assign an open ticket', () => {
-    expect(canAssign(agent, { status: 'open' }).ok).toBe(true);
+describe('#3 Admin-only triage (FR-10, BR-02)', () => {
+  it('lets the admin change status, priority and category', () => {
+    expect(editableFields('admin')).toEqual(expect.arrayContaining(['status', 'priority', 'category_id']));
   });
-  it('blocks requesters and closed tickets', () => {
-    expect(canAssign(alice, { status: 'open' }).ok).toBe(false);
-    expect(canAssign(agent, { status: 'resolved' }).ok).toBe(false);
+  it('has no assignee field any more (no agent role)', () => {
+    expect(editableFields('admin')).not.toContain('assigned_agent_id');
   });
 });
 
 describe('#5 Resolve (FR-13)', () => {
-  it('allows agents to resolve an in-progress ticket', () => {
-    expect(canResolve(agent, { status: 'in_progress' }).ok).toBe(true);
+  it('allows the admin to resolve an in-progress ticket', () => {
+    expect(canResolve(admin, { status: 'in_progress' }).ok).toBe(true);
   });
   it('blocks requesters and double-resolve', () => {
     expect(canResolve(alice, { status: 'in_progress' }).ok).toBe(false);
-    expect(canResolve(agent, { status: 'resolved' }).ok).toBe(false);
+    expect(canResolve(admin, { status: 'resolved' }).ok).toBe(false);
   });
 });
 
 // TODO(P1, F25): remove .skip after implementing canTransition()
 describe.skip('Lifecycle (PRD §14)', () => {
-  it('follows Open → Assigned → InProgress → Resolved → Closed', () => {
-    expect(canTransition('open', 'assigned')).toBe(true);
-    expect(canTransition('assigned', 'in_progress')).toBe(true);
+  it('follows Open → InProgress → Resolved → Closed', () => {
+    expect(canTransition('open', 'in_progress')).toBe(true);
     expect(canTransition('in_progress', 'resolved')).toBe(true);
     expect(canTransition('resolved', 'closed')).toBe(true);
   });

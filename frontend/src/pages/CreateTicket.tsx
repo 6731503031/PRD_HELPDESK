@@ -11,7 +11,7 @@ import { useAsync } from '../lib/useAsync';
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'urgent'];
 
 export function CreateTicket() {
-  const { data: categories } = useAsync(() => api.categories(), []);
+  const { data: categories, error: categoriesError } = useAsync(() => api.categories(), []);
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState<number | ''>('');
@@ -79,13 +79,14 @@ export function CreateTicket() {
       <div className="page">
         <div className="page__head">
           <h1>ส่งคำร้องแล้ว</h1>
-          <p>เก็บเลขคำร้องไว้เพื่อติดตามหรืออ้างอิงกับเจ้าหน้าที่</p>
+          <p>เก็บเลขคำร้องไว้เพื่อติดตามหรืออ้างอิงกับผู้ดูแล</p>
         </div>
         <Panel>
           <p className="muted">เลขที่คำร้อง</p>
-          <p style={{ fontFamily: 'var(--display)', fontSize: '2.2rem', color: 'var(--brand)', fontWeight: 600 }}>{created.ticket_number}</p>
-          <p style={{ marginTop: 8 }}>{created.title}</p>
-          <div className="form-actions" style={{ marginTop: 24 }}>
+          <p className="ticket-number">{created.ticket_number}</p>
+          <p className="mt-2">{created.title}</p>
+          <p className="muted small mt-2">แก้หัวเรื่องและรายละเอียดได้จนกว่าผู้ดูแลจะเริ่มดำเนินการ</p>
+          <div className="form-actions mt-5">
             <a className="btn" href={`#/my/${created.id}`}>ดูสถานะคำร้องนี้</a>
             <button className="btn btn--secondary" onClick={reset}>แจ้งปัญหาเรื่องอื่น</button>
           </div>
@@ -98,7 +99,7 @@ export function CreateTicket() {
     <div className="page">
       <div className="page__head">
         <h1>แจ้งปัญหาใหม่</h1>
-        <p>อธิบายปัญหาให้ชัดเจน เจ้าหน้าที่จะคัดกรองและติดต่อกลับผ่านคำร้องนี้</p>
+        <p>อธิบายปัญหาให้ชัดเจน ผู้ดูแลจะคัดกรองและแจ้งความคืบหน้าในคำร้องนี้</p>
       </div>
 
       <div className="layout-aside">
@@ -131,6 +132,7 @@ export function CreateTicket() {
             </Field>
 
             <Field id="category" label="หมวดหมู่" required error={fieldErrors.category_id}>
+              {categoriesError ? <ErrorNotice error={categoriesError} /> : null}
               <select
                 id="category"
                 className="select"
@@ -182,7 +184,7 @@ export function CreateTicket() {
             <p className="small">
               ระบบอ่านหัวเรื่องและรายละเอียด แล้วเสนอหมวดหมู่และความเร่งด่วน คุณแก้ไขได้ทุกช่องก่อนส่ง
             </p>
-            <div style={{ marginTop: 12 }}>
+            <div className="mt-3">
               <button
                 className="btn btn--secondary"
                 type="button"
@@ -192,7 +194,7 @@ export function CreateTicket() {
                 {suggesting ? 'กำลังวิเคราะห์…' : 'ขอคำแนะนำ'}
               </button>
             </div>
-            {suggestError ? <div style={{ marginTop: 12 }}><ErrorNotice error={suggestError} /></div> : null}
+            {suggestError ? <div className="mt-3"><ErrorNotice error={suggestError} /></div> : null}
             {suggestion && (
               <div className="suggestion" aria-live="polite">
                 <dl className="meta">
@@ -203,11 +205,11 @@ export function CreateTicket() {
                   <dt>ส่งต่อไปยัง</dt>
                   <dd>{ROUTE_LABEL[suggestion.route] ?? suggestion.route}</dd>
                 </dl>
-                <p className="muted small" style={{ marginTop: 8 }}>
+                <p className="muted small mt-2">
                   {suggestion.source === 'ai' ? 'แนะนำโดย AI' : 'แนะนำตามกฎของระบบ (AI ไม่พร้อมใช้งาน)'}
                   {suggestion.reason ? `: ${suggestion.reason}` : ''}
                 </p>
-                <button className="btn btn--plain" type="button" onClick={applySuggestion} style={{ marginTop: 8 }}>
+                <button className="btn btn--plain mt-2" type="button" onClick={applySuggestion}>
                   ใช้ค่าที่แนะนำ
                 </button>
               </div>
@@ -217,9 +219,9 @@ export function CreateTicket() {
           <Panel title="หลังจากส่งคำร้อง" quiet>
             <ol className="steps small">
               <li>ระบบออกเลขคำร้องให้ทันที</li>
-              <li>เจ้าหน้าที่คัดกรองและมอบหมายผู้รับผิดชอบ</li>
-              <li>คุณติดตามสถานะและตอบข้อความได้ที่ "คำร้องของฉัน"</li>
-              <li>ถ้าเป็นงานซ่อม เจ้าหน้าที่จะส่งต่อฝ่ายซ่อมบำรุง และคุณจะเห็นความคืบหน้าในคำร้องนี้</li>
+              <li>ผู้ดูแลคัดกรองและเริ่มดำเนินการ ก่อนถึงตอนนั้นคุณยังแก้คำร้องได้</li>
+              <li>ถ้าเป็นงานซ่อม ผู้ดูแลจะส่งต่อฝ่ายซ่อมบำรุง และสถานะงานซ่อมจะขึ้นในคำร้องนี้เอง</li>
+              <li>เมื่อแก้ไขเสร็จ คุณจะเห็นสรุปการแก้ไขที่ "คำร้องของฉัน"</li>
             </ol>
           </Panel>
         </div>

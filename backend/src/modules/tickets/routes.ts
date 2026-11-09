@@ -4,17 +4,16 @@
  *
  *   POST   /tickets               FR-03 create
  *   GET    /tickets/me            FR-05 my tickets
- *   GET    /tickets               FR-08 agent queue (customer → own only)
+ *   GET    /tickets               FR-08 admin dashboard list (customer → own only)
  *   GET    /tickets/:id           FR-06 detail + status history
  *   PATCH  /tickets/:id           FR-10 triage / requester edit (field whitelist)
  *   PUT    /tickets/:id           legacy alias of PATCH (Assignment 2)
  *   DELETE /tickets/:id           Assignment 2 (admin / owner before resolve)
- *   POST   /tickets/:id/assign    FR-09
  *   POST   /tickets/:id/resolve   FR-13
  */
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../../core/env';
-import { verify } from '../../core/identity';
+import { findIdentity } from '../../core/profiles';
 import { ApiError, badRequest, conflict, forbidden, notFound, parseId, readJson } from '../../core/http';
 import { recordSuggestion } from '../../ai/record';
 import { publishEvent } from '../events/publish';
@@ -22,7 +21,6 @@ import {
   PRIORITIES,
   STATUSES,
   WELLBEING_SLUGS,
-  canAssign,
   canResolve,
   canTransition,
   canViewTicket,
@@ -39,10 +37,13 @@ import {
   listTickets,
   recordStatus,
   updateTicket,
-  withNames,
+  attachNames,
 } from './repo';
 
 export const ticketRoutes = new Hono<AppEnv>();
+
+/** One ticket with the requester's display name (guest or directory). */
+const named = async (c: Context<AppEnv>, t: Parameters<typeof attachNames>[1][number]) => (await attachNames(c.env.DB, [t]))[0];
 
 async function loadVisible(c: Context<AppEnv>, id: number) {
   const ticket = await getTicket(c.env.DB, id);
@@ -60,22 +61,22 @@ ticketRoutes.post('/tickets', async (c) => {
   const input = parsed.value;
   const customerId = input.customer_id ?? user.id;
   if (!isStaff(user.role) && customerId !== user.id) throw forbidden('สร้าง ticket ได้เฉพาะของตัวเอง');
-  if (!verify(customerId)) throw badRequest('customer_id ไม่มีใน Identity');
+  if (!(await findIdentity(c.env.DB, customerId))) throw badRequest('customer_id ไม่มีใน Identity');
   if (!(await categoryIsActive(c.env.DB, input.category_id))) throw badRequest('หมวดหมู่นี้ไม่มีหรือถูกปิดใช้งาน');
 
   const id = await insertTicket(c.env.DB, { ...input, customer_id: customerId });
   await recordStatus(c.env.DB, id, null, 'open', user.id, 'helpdesk', 'สร้างคำร้อง');
   const ticket = (await getTicket(c.env.DB, id))!;
   await publishEvent(c.env, 'ticket.created', ticket); // FR-04
-  // PRD §8.1: keep the triage suggestion for the agent — runs after the response, never blocks creation (F31, P4)
+  // PRD §8.1: keep the triage suggestion for the admin — runs after the response, never blocks creation (F31, P4)
   c.executionCtx.waitUntil(recordSuggestion(c.env, ticket));
-  return c.json({ message: 'Ticket created', data: withNames(ticket) }, 201);
+  return c.json({ message: 'Ticket created', data: await named(c, ticket) }, 201);
 });
 
 // ---------- FR-05 My tickets ----------
 ticketRoutes.get('/tickets/me', async (c) => {
   const rows = await listTickets(c.env.DB, { customerId: c.get('user').id });
-  return c.json({ count: rows.length, data: rows.map(withNames) });
+  return c.json({ count: rows.length, data: await attachNames(c.env.DB, rows) });
 });
 
 // ---------- FR-08 Queue / list ----------
@@ -88,18 +89,16 @@ ticketRoutes.get('/tickets', async (c) => {
     customerId: isStaff(user.role) ? (q.customer_id ? Number(q.customer_id) : undefined) : user.id,
     status,
     priority,
-    assignedAgentId: q.assigned_agent_id ? Number(q.assigned_agent_id) : undefined,
-    unassigned: q.unassigned === 'true',
     sort: q.sort === 'queue' ? 'queue' : 'recent',
   });
-  return c.json({ count: rows.length, data: rows.map(withNames) });
+  return c.json({ count: rows.length, data: await attachNames(c.env.DB, rows) });
 });
 
 // ---------- FR-06 Detail ----------
 ticketRoutes.get('/tickets/:id', async (c) => {
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
   const history = await getHistory(c.env.DB, ticket.id);
-  return c.json({ data: { ...withNames(ticket), history } });
+  return c.json({ data: { ...(await named(c, ticket)), history } });
 });
 
 // ---------- FR-10 Triage / edit ----------
@@ -107,7 +106,7 @@ async function patchTicket(c: Context<AppEnv>) {
   const user = c.get('user');
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
   if (!isStaff(user.role) && ticket.status !== 'open') {
-    throw conflict('แก้ไขได้เฉพาะตอนที่คำร้องยังไม่มีผู้รับเรื่อง');
+    throw conflict('แก้ไขได้เฉพาะตอนที่คำร้องยังไม่เริ่มดำเนินการ');
   }
 
   const body = await readJson<Record<string, unknown>>(c);
@@ -122,10 +121,6 @@ async function patchTicket(c: Context<AppEnv>) {
   if ('priority' in fields && !PRIORITIES.includes(fields.priority as never)) throw badRequest('priority ไม่ถูกต้อง');
   if ('category_id' in fields && !(await categoryIsActive(c.env.DB, Number(fields.category_id)))) {
     throw badRequest('category_id ไม่มีหรือถูกปิดใช้งาน');
-  }
-  if ('assigned_agent_id' in fields && fields.assigned_agent_id !== null) {
-    const agent = verify(Number(fields.assigned_agent_id));
-    if (!agent || !isStaff(agent.role)) throw badRequest('assigned_agent_id ต้องเป็น agent หรือ admin');
   }
   if ('wellbeing_service_slug' in fields && fields.wellbeing_service_slug !== null &&
       !WELLBEING_SLUGS.includes(fields.wellbeing_service_slug as never)) {
@@ -147,40 +142,17 @@ async function patchTicket(c: Context<AppEnv>) {
   const updated = (await getTicket(c.env.DB, ticket.id))!;
   if (newStatus === 'resolved') await publishEvent(c.env, 'ticket.resolved', updated);
   else if (newStatus) await publishEvent(c.env, 'ticket.status_changed', updated, { from: ticket.status });
-  return c.json({ message: 'Ticket updated', data: withNames(updated) });
+  return c.json({ message: 'Ticket updated', data: await named(c, updated) });
 }
 ticketRoutes.patch('/tickets/:id', patchTicket);
 ticketRoutes.put('/tickets/:id', patchTicket);
 
 // ---------- Delete (Assignment 2) ----------
 ticketRoutes.delete('/tickets/:id', async (c) => {
-  const user = c.get('user');
   const ticket = await loadVisible(c, parseId(c.req.param('id')));
-  if (user.role === 'agent') throw forbidden('agent ลบ ticket ไม่ได้ ใช้ resolve แทน');
   if (ticket.status === 'resolved' || ticket.status === 'closed') throw conflict('ticket ที่ปิดแล้วลบไม่ได้');
   await c.env.DB.prepare('DELETE FROM tickets WHERE id = ?').bind(ticket.id).run();
   return c.json({ message: 'Ticket deleted', id: ticket.id });
-});
-
-// ---------- FR-09 Assign ----------
-ticketRoutes.post('/tickets/:id/assign', async (c) => {
-  const user = c.get('user');
-  const ticket = await loadVisible(c, parseId(c.req.param('id')));
-  const check = canAssign(user, ticket);
-  if (!check.ok) throw forbidden(check.reason!);
-
-  const body = await readJson<{ agent_id?: number }>(c);
-  const agentId = Number(body.agent_id ?? user.id); // default = assign to myself
-  const agent = verify(agentId);
-  if (!agent || !isStaff(agent.role)) throw badRequest('agent_id ต้องเป็น agent หรือ admin');
-
-  const to: TicketStatus = ticket.status === 'open' ? 'assigned' : ticket.status;
-  await updateTicket(c.env.DB, ticket.id, { assigned_agent_id: agentId, status: to });
-  if (to !== ticket.status) await recordStatus(c.env.DB, ticket.id, ticket.status, to, user.id, 'helpdesk', `มอบหมายให้ ${agent.displayName}`);
-
-  const updated = (await getTicket(c.env.DB, ticket.id))!;
-  await publishEvent(c.env, 'ticket.assigned', updated);
-  return c.json({ message: 'Ticket assigned', data: withNames(updated) });
 });
 
 // ---------- FR-13 Resolve ----------
@@ -202,5 +174,5 @@ ticketRoutes.post('/tickets/:id/resolve', async (c) => {
 
   const updated = (await getTicket(c.env.DB, ticket.id))!;
   await publishEvent(c.env, 'ticket.resolved', updated);
-  return c.json({ message: 'Ticket resolved', data: withNames(updated) });
+  return c.json({ message: 'Ticket resolved', data: await named(c, updated) });
 });

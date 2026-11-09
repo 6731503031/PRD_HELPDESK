@@ -47,8 +47,8 @@ export function Admin() {
   return (
     <div className="page">
       <div className="page__head">
-        <h1>ผู้ดูแลระบบ</h1>
-        <p>ภาพรวมจำนวนคำร้อง และหมวดหมู่ที่ผู้แจ้งเลือกได้</p>
+        <h1>จัดการหมวดหมู่</h1>
+        <p>หมวดหมู่ที่ผู้แจ้งเลือกได้ตอนแจ้งปัญหา เพิ่มใหม่หรือปิดใช้หมวดที่ไม่ใช้แล้ว</p>
       </div>
 
       <Panel title="จำนวนคำร้อง">
@@ -60,12 +60,12 @@ export function Admin() {
           <div className="layout-split">
             <div>
               <h3>ตามสถานะ</h3>
-              <table className="table" style={{ marginTop: 8 }}>
+              <table className="table table--static mt-2">
                 <tbody>
                   {(Object.keys(STATUS_LABEL) as TicketStatus[]).map((s) => (
-                    <tr key={s} style={{ cursor: 'default' }}>
+                    <tr key={s}>
                       <td>{STATUS_LABEL[s]}</td>
-                      <td className="num" style={{ textAlign: 'right' }}>{stats.data!.by_status[s] ?? 0}</td>
+                      <td className="num cell-end">{stats.data!.by_status[s] ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -73,17 +73,17 @@ export function Admin() {
             </div>
             <div>
               <h3>ตามความเร่งด่วน</h3>
-              <table className="table" style={{ marginTop: 8 }}>
+              <table className="table table--static mt-2">
                 <tbody>
                   {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
-                    <tr key={p} style={{ cursor: 'default' }}>
+                    <tr key={p}>
                       <td>{PRIORITY_LABEL[p]}</td>
-                      <td className="num" style={{ textAlign: 'right' }}>{stats.data!.by_priority[p] ?? 0}</td>
+                      <td className="num cell-end">{stats.data!.by_priority[p] ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="muted" style={{ marginTop: 8 }}>รวมทั้งหมด {stats.data.total} คำร้อง</p>
+              <p className="muted mt-2">รวมทั้งหมด {stats.data.total} คำร้อง</p>
             </div>
           </div>
         ) : null}
@@ -100,8 +100,8 @@ export function Admin() {
         ) : cats.error ? (
           <ErrorNotice error={cats.error} />
         ) : (
-          <div className="table-wrap" style={{ marginTop: result ? 16 : 0 }}>
-            <table className="table">
+          <div className={`table-wrap${result ? ' mt-4' : ''}`}>
+            <table className="table table--static">
               <caption className="visually-hidden">หมวดหมู่ทั้งหมด</caption>
               <thead>
                 <tr>
@@ -113,11 +113,11 @@ export function Admin() {
               </thead>
               <tbody>
                 {cats.data?.map((c) => (
-                  <tr key={c.id} style={{ cursor: 'default' }}>
+                  <tr key={c.id}>
                     <td>{c.name}</td>
                     <td className="muted">{c.description ?? '–'}</td>
                     <td>{c.is_active ? 'เปิดใช้' : <span className="muted">ปิดใช้</span>}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="cell-end">
                       <button className="btn btn--plain btn--small" onClick={() => toggle(c.id, !c.is_active)}>
                         {c.is_active ? 'ปิดใช้' : 'เปิดใช้'}
                       </button>
@@ -129,7 +129,7 @@ export function Admin() {
           </div>
         )}
 
-        <form className="form" onSubmit={add} style={{ marginTop: 24, maxWidth: 560 }}>
+        <form className="form form--narrow mt-5" onSubmit={add}>
           <h3>เพิ่มหมวดหมู่</h3>
           <Field id="cat-name" label="ชื่อหมวดหมู่" required>
             <input id="cat-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={50} />

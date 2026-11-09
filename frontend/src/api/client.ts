@@ -2,7 +2,7 @@
  * The ONLY place the UI talks to the backend.
  * Adds the Identity-stub headers and turns error responses into typed errors.
  */
-import type { Category, Comment, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User, Visibility } from './types';
+import type { Category, Comment, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User } from './types';
 
 const BASE = '/api/v1';
 
@@ -51,36 +51,44 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   throw new ApiError(res.status, body.error ?? 'Error', body.message ?? `เกิดข้อผิดพลาด (${res.status})`, body.fields);
 }
 
+/** Old 'assigned' rows (before v1.1) are shown as in progress, so no screen meets an unknown status. */
+const fix = <T extends { status: string }>(t: T): T => (t.status === 'assigned' ? { ...t, status: 'in_progress' } : t);
+
 const post = (body: unknown) => ({ method: 'POST', body: JSON.stringify(body) });
 const patch = (body: unknown) => ({ method: 'PATCH', body: JSON.stringify(body) });
 
 export const api = {
+  // sign-in (Identity stub): a guest gets an id from a self-declared name; nothing is verified
+  me: () => request<{ data: User }>('/me').then((r) => r.data),
+  createGuest: (name: string, email: string) => request<{ data: User }>('/auth/guest', post({ name, email })).then((r) => r.data),
+  updateProfile: (name: string, email: string) =>
+    request<{ data: User }>('/me', { method: 'PUT', body: JSON.stringify({ name, email }) }).then((r) => r.data),
+
   // reference
+  config: () => request<{ data: { maintenance_portal_url: string | null } }>('/config').then((r) => r.data),
   users: () => request<{ data: User[] }>('/users').then((r) => r.data),
   categories: (all = false) => request<{ data: Category[] }>(`/categories${all ? '?all=true' : ''}`).then((r) => r.data),
 
   // tickets (P1)
   createTicket: (input: { subject: string; description: string; category_id: number; urgency: Priority }) =>
-    request<{ data: Ticket }>('/tickets', post(input)).then((r) => r.data),
-  myTickets: () => request<{ data: Ticket[] }>('/tickets/me').then((r) => r.data),
-  queue: (f: { status?: string; priority?: string; unassigned?: boolean } = {}) => {
+    request<{ data: Ticket }>('/tickets', post(input)).then((r) => fix(r.data)),
+  myTickets: () => request<{ data: Ticket[] }>('/tickets/me').then((r) => r.data.map(fix)),
+  queue: (f: { status?: string; priority?: string } = {}) => {
     const q = new URLSearchParams({ sort: 'queue' });
     if (f.status) q.set('status', f.status);
     if (f.priority) q.set('priority', f.priority);
-    if (f.unassigned) q.set('unassigned', 'true');
-    return request<{ data: Ticket[] }>(`/tickets?${q}`).then((r) => r.data);
+    return request<{ data: Ticket[] }>(`/tickets?${q}`).then((r) => r.data.map(fix));
   },
-  ticket: (id: number) => request<{ data: TicketDetail }>(`/tickets/${id}`).then((r) => r.data),
+  ticket: (id: number) => request<{ data: TicketDetail }>(`/tickets/${id}`).then((r) => fix(r.data)),
   updateTicket: (id: number, fields: Partial<{ priority: Priority; category_id: number; status: TicketStatus; title: string; description: string }>) =>
-    request<{ data: Ticket }>(`/tickets/${id}`, patch(fields)).then((r) => r.data),
-  assign: (id: number, agentId: number) => request<{ data: Ticket }>(`/tickets/${id}/assign`, post({ agent_id: agentId })).then((r) => r.data),
+    request<{ data: Ticket }>(`/tickets/${id}`, patch(fields)).then((r) => fix(r.data)),
   resolve: (id: number, note: string) =>
-    request<{ data: Ticket }>(`/tickets/${id}/resolve`, post({ resolution_note: note })).then((r) => r.data),
+    request<{ data: Ticket }>(`/tickets/${id}/resolve`, post({ resolution_note: note })).then((r) => fix(r.data)),
 
-  // comments (P2)
+  // chat (F11): one conversation per ticket, requester <-> admin. No internal notes (PRD v1.1).
   comments: (id: number) => request<{ data: Comment[] }>(`/tickets/${id}/comments`).then((r) => r.data),
-  addComment: (id: number, content: string, visibility: Visibility) =>
-    request<{ data: Comment }>(`/tickets/${id}/comments`, post({ content, visibility })).then((r) => r.data),
+  addComment: (id: number, content: string) =>
+    request<{ data: Comment }>(`/tickets/${id}/comments`, post({ content })).then((r) => r.data),
 
   // maintenance (P3)
   linkWorkOrder: (id: number, workOrderId: string) =>

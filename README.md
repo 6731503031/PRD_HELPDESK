@@ -10,11 +10,11 @@ React + TypeScript + Vite (หน้าบ้าน) · Cloudflare Workers + Hon
 ```
 PRD_HELPDESK/
 │
-├── frontend/                 หน้าบ้าน: React (ผู้ใช้เห็นและกด)                    P4
+├── frontend/                 หน้าบ้าน: React (ผู้ใช้เห็นและกด)                    P1
 │   ├── index.html
 │   ├── vite.config.ts        build ไป public/ ให้ Worker เสิร์ฟ
 │   └── src/
-│       ├── pages/            Login, CreateTicket, MyTickets, AgentQueue, Admin
+│       ├── pages/            Login, CreateTicket, MyTickets, Dashboard, Admin
 │       ├── components/       ตาราง, รายละเอียดคำร้อง, ปุ่ม/ฟอร์มกลาง
 │       ├── api/              client.ts เรียก /api/v1 + types.ts
 │       ├── auth/             เข้าสู่ระบบแบบ stub
@@ -26,9 +26,9 @@ PRD_HELPDESK/
 │   │   ├── index.ts          รวมทุกโมดูล + /api/v1 + cron                       P1
 │   │   ├── core/             env, auth (Identity stub), error, correlation id    P1
 │   │   ├── modules/
-│   │   │   ├── tickets/      สร้าง / คิว / รายละเอียด / มอบหมาย / ปิดงาน           P1
+│   │   │   ├── tickets/      สร้าง / แดชบอร์ด / รายละเอียด / ปิดงาน                 P1
 │   │   │   ├── reference/    categories, users, health                          P1
-│   │   │   ├── comments/     ข้อความ public / internal                           P2
+│   │   │   ├── comments/     แชทในคำร้อง (ผู้แจ้ง ↔ admin)                        P2
 │   │   │   ├── events/       ticket.* events + escalation (cron)                P2
 │   │   │   ├── maintenance/  เชื่อม Team 10: ผูกใบงาน + webhook HMAC             P3
 │   │   │   ├── wellbeing/    Team 16 catalogue (ทำเสร็จแล้ว)                     P3
@@ -36,7 +36,7 @@ PRD_HELPDESK/
 │   │   └── ai/               ★ ส่วน AI: แนะนำหมวด/ความเร่งด่วน + fallback        P4
 │   │       ├── ai.ts         เรียก Workers AI (Llama 3.1 8B)
 │   │       ├── fallback.ts   กฎ keyword เมื่อ AI ใช้ไม่ได้ + ตรวจผลลัพธ์ AI
-│   │       ├── record.ts     เก็บคำแนะนำไว้กับคำร้อง ให้เจ้าหน้าที่เห็นในคิวงาน
+│   │       ├── record.ts     เก็บคำแนะนำไว้กับคำร้อง ให้ admin เห็นในแดชบอร์ด
 │   │       └── routes.ts     POST /tickets/suggest
 │   ├── test/                 Vitest (test ที่ .skip = รอเจ้าของงานทำ)
 │   └── postman_collection.json
@@ -73,9 +73,13 @@ npm run dev                   # http://127.0.0.1:8787  (หน้าเว็บ
 | `bash scripts/smoke.sh` | ทดสอบ API ทั้งระบบกับ server ที่รันอยู่ |
 | `npm run mock:maintenance -- WO-0045 in_progress` | จำลอง Team 10 ส่ง webhook |
 | `npm run db:remote:migrate` | เพิ่มตารางใหม่บน production (ครั้งเดียว) |
+| `npm run db:local:update` | อัปเดต DB บนเครื่องที่สร้างไว้แล้ว: คำร้องเก่า `assigned` → `in_progress`, ตาราง `user_profiles` (guest), ลบบันทึกภายในเดิม · DB ใหม่ใช้ `db:local:fresh` ไม่ต้องรันตัวนี้ |
+| `npm run db:remote:update` | เหมือนกันแต่บน production (**ลบบันทึกภายในที่มีอยู่** ต้องได้รับอนุมัติก่อนรัน) |
 | `npm run deploy` | build + deploy |
+| `npm run wt:new -- p2/events` | เริ่มงานใหม่ใน git worktree ของตัวเอง (ดู docs/TEAM_GUIDE.md ข้อ 4) |
+| `npm run wt:list` / `wt:open` / `wt:rm` | ดู / เปิดงานเพื่อนมา review / ลบ worktree |
 
-เปิดเว็บแล้วจะเจอหน้าเข้าสู่ระบบ (เลือกบัญชีทดสอบ) หรือข้ามด้วย `?as=<id>` เช่น http://127.0.0.1:8787/?as=3#/queue
+เปิดเว็บแล้วจะเจอหน้าเข้าสู่ระบบ: ผู้แจ้งกด "เข้าสู่ระบบ" แล้วบอกชื่อ · Admin เข้าที่ http://127.0.0.1:8787/#/staff · หรือข้ามด้วย `?as=<id>` เช่น http://127.0.0.1:8787/?as=5#/queue
 
 ## เอกสาร
 
@@ -84,11 +88,12 @@ npm run dev                   # http://127.0.0.1:8787  (หน้าเว็บ
 | [docs/PRD.md](docs/PRD.md) | PRD v1.0: ขอบเขตและ requirement |
 | [docs/FEATURES.md](docs/FEATURES.md) | ฟีเจอร์ F01–F30 + สถานะ, ผู้ใช้ 3 role, API, tests |
 | [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md) | ใครทำอะไร (P1–P4), วิธีใช้ git, timeline |
+| [docs/Team-Roles.docx](docs/Team-Roles.docx) | แบ่งงาน 4 คนแบบอ่านง่าย: แผนภาพ, ฟีเจอร์ต่อคน, timeline |
 | [docs/Helpdesk-Maintenance-Integration-Proposal.docx](docs/Helpdesk-Maintenance-Integration-Proposal.docx) | ข้อเสนอเชื่อมกับ Team 10 Maintenance |
 | [docs/assignments/](docs/assignments/) | งาน A2 และ A5 ที่ส่งไปแล้ว |
 
 ## หมายเหตุ
 
-- ผู้ใช้เป็น Identity stub (PRD §20) ไม่เชื่อมกับทีมอื่น: ส่ง header `x-user-id` + `x-user-role` ตาม `backend/src/core/identity.ts` (6 คน: 3 customer, 2 agent, 1 admin) หน้าเว็บส่งให้เองหลังเข้าสู่ระบบ
+- ผู้ใช้เป็น Identity stub (PRD §20) ไม่เชื่อมกับทีมอื่น: ส่ง header `x-user-id` + `x-user-role` ตาม `backend/src/core/identity.ts` (4 บัญชีตัวอย่าง: 3 customer, 1 admin) และ guest ที่ผู้แจ้งสร้างเองตอนกดเข้าสู่ระบบ (id ตั้งแต่ 1000 เก็บชื่อในตาราง `user_profiles`) หน้าเว็บส่ง header ให้เองหลังเข้าสู่ระบบ
 - endpoint ที่ยังไม่ทำตอบ `501` พร้อมชื่อผู้รับผิดชอบ หน้าเว็บแสดงว่า "ยังไม่เปิดใช้งาน"
 - path เดิมของ A2 (ไม่มี `/api/v1`) ยังใช้ได้ Postman collection เดิมใช้ต่อได้

@@ -2,7 +2,7 @@
  * Ticket data access (D1). All SQL is parameterised.
  * Owner: P1 (Core & Tickets)
  */
-import { verify } from '../../core/identity';
+import { displayNames } from '../../core/profiles';
 import { QUEUE_ORDER_SQL, ticketNumber, type CreateInput, type Ticket, type TicketStatus } from './rules';
 
 export type TicketRow = Ticket & { category_name: string | null; ai_category_name: string | null };
@@ -12,11 +12,10 @@ const SELECT = `SELECT t.*, c.name AS category_name, ac.name AS ai_category_name
   LEFT JOIN ticket_categories c ON c.id = t.category_id
   LEFT JOIN ticket_categories ac ON ac.id = t.ai_category_id`;
 
-/** Adds display names from Identity (reference only — not stored, PRD §10.2). */
-export function withNames<T extends Pick<Ticket, 'customer_id' | 'assigned_agent_id'>>(t: T) {
-  const customer = verify(t.customer_id);
-  const agent = t.assigned_agent_id != null ? verify(t.assigned_agent_id) : null;
-  return { ...t, customer_name: customer?.displayName ?? null, agent_name: agent?.displayName ?? null };
+/** Adds display names from Identity / guest profiles (reference only — not stored on the ticket, PRD §10.2). */
+export async function attachNames<T extends Pick<Ticket, 'customer_id'>>(db: D1Database, rows: T[]) {
+  const names = await displayNames(db, rows.map((r) => r.customer_id));
+  return rows.map((r) => ({ ...r, customer_name: names.get(r.customer_id) ?? null }));
 }
 
 export async function getTicket(db: D1Database, id: number): Promise<TicketRow | null> {
@@ -27,8 +26,6 @@ export type ListFilter = {
   customerId?: number;
   status?: string;
   priority?: string;
-  assignedAgentId?: number;
-  unassigned?: boolean;
   /** 'queue' = FR-08 order (priority, then age); default = newest first */
   sort?: 'queue' | 'recent';
 };
@@ -39,8 +36,6 @@ export async function listTickets(db: D1Database, f: ListFilter): Promise<Ticket
   if (f.customerId != null) { where.push('t.customer_id = ?'); params.push(f.customerId); }
   if (f.status) { where.push('t.status = ?'); params.push(f.status); }
   if (f.priority) { where.push('t.priority = ?'); params.push(f.priority); }
-  if (f.assignedAgentId != null) { where.push('t.assigned_agent_id = ?'); params.push(f.assignedAgentId); }
-  if (f.unassigned) where.push('t.assigned_agent_id IS NULL');
 
   const order = f.sort === 'queue' ? QUEUE_ORDER_SQL : 't.updated_at DESC';
   const sql = `${SELECT} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${order} LIMIT 200`;
@@ -101,9 +96,10 @@ export async function getHistory(db: D1Database, ticketId: number) {
     )
     .bind(ticketId)
     .all<{ from_status: string | null; to_status: string; changed_by: number | null; source: string; note: string | null; created_at: string }>();
+  const names = await displayNames(db, (results ?? []).map((h) => h.changed_by));
   return (results ?? []).map((h) => ({
     ...h,
-    changed_by_name: h.changed_by != null ? verify(h.changed_by)?.displayName ?? null : null,
+    changed_by_name: h.changed_by != null ? names.get(h.changed_by) ?? null : null,
   }));
 }
 

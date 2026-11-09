@@ -17,7 +17,6 @@ export type DomainEventType =
   | 'ticket.escalated'
   | 'ticket.resolved'
   // supporting (PRD §7.2, optional)
-  | 'ticket.assigned'
   | 'ticket.status_changed'
   | 'ticket.work_order_linked';
 
@@ -36,7 +35,7 @@ export type EventEnvelope = {
  */
 export function buildEnvelope(
   type: DomainEventType,
-  ticket: Pick<Ticket, 'id' | 'ticket_number' | 'status' | 'priority' | 'category_id' | 'customer_id' | 'assigned_agent_id'>,
+  ticket: Pick<Ticket, 'id' | 'ticket_number' | 'status' | 'priority' | 'category_id' | 'customer_id'>,
   extra: Record<string, unknown> = {},
 ): EventEnvelope {
   return {
@@ -52,7 +51,6 @@ export function buildEnvelope(
       priority: ticket.priority,
       categoryId: ticket.category_id,
       requesterId: ticket.customer_id,
-      assigneeId: ticket.assigned_agent_id,
       ...extra,
     },
   };

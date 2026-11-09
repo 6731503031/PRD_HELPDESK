@@ -1,0 +1,160 @@
+/**
+ * Admin dashboard (PRD FR-08 list sorted by priority then age) + ticket workspace (FR-10/13).
+ * One staff role (admin) — no assignment, so the views are about status, not people.
+ *   #/queue      → numbers at a glance, then the full ticket list
+ *   #/queue/:id  → one ticket: conversation + properties + actions
+ */
+import { useMemo, useState } from 'react';
+import { api } from '../api/client';
+import type { Priority, Ticket, TicketStatus } from '../api/types';
+import { Icon } from '../components/Icon';
+import { TicketDetail } from '../components/TicketDetail';
+import { TicketTable } from '../components/TicketTable';
+import { ErrorNotice, Loading, Panel } from '../components/ui';
+import { useIdentity } from '../auth/identity';
+import { PRIORITY_LABEL, STATUS_LABEL, STATUS_ORDER, isRepairDone, stageOf } from '../lib/format';
+import { useAsync } from '../lib/useAsync';
+
+type View = 'active' | 'waiting' | 'urgent' | 'maintenance' | 'repaired' | 'done';
+
+const isActive = (t: Ticket) => t.status === 'open' || t.status === 'in_progress';
+
+/** Cards follow the admin's work: triage (UC-07) → Team 10 (UC-08/11) → resolve (UC-09). */
+const VIEWS: Record<View, { label: string; test: (t: Ticket) => boolean }> = {
+  active: { label: 'ยังไม่ปิด', test: isActive },
+  waiting: { label: 'รอคัดกรอง', test: (t) => t.status === 'open' },
+  urgent: { label: 'ด่วนมาก ยังไม่เริ่ม', test: (t) => t.status === 'open' && t.priority === 'urgent' },
+  maintenance: {
+    label: 'อยู่ระหว่างซ่อม',
+    test: (t) => isActive(t) && !!t.maintenance_work_order_id && !isRepairDone(t.maintenance_status),
+  },
+  repaired: { label: 'ซ่อมเสร็จ รอปิดงาน', test: (t) => isActive(t) && isRepairDone(t.maintenance_status) },
+  done: { label: 'แก้ไขแล้ว', test: (t) => t.status === 'resolved' || t.status === 'closed' },
+};
+const CARDS: View[] = ['active', 'waiting', 'urgent', 'maintenance', 'repaired', 'done'];
+/** Cards that turn red when they are not empty: work someone is waiting on. */
+const ALERT: View[] = ['urgent', 'repaired'];
+
+/** Same colours as the progress line on a ticket: blue, amber, green. */
+const STATUS_COLOR: Record<TicketStatus, string> = {
+  open: 'var(--fill-open)',
+  in_progress: 'var(--fill-progress)',
+  resolved: 'var(--fill-resolved)',
+  closed: 'var(--fill-resolved)',
+};
+
+export function Dashboard({ selectedId }: { selectedId?: number }) {
+  const { user } = useIdentity();
+  const { data, error, loading, reload } = useAsync(() => api.queue(), [user?.id]);
+  const [view, setView] = useState<View>('active');
+  const [priority, setPriority] = useState<Priority | ''>('');
+  const [search, setSearch] = useState('');
+
+  const all = data ?? [];
+  const count = (v: View) => all.filter((t) => VIEWS[v].test(t)).length;
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return all.filter(
+      (t) =>
+        VIEWS[view].test(t) &&
+        (!priority || t.priority === priority) &&
+        (!q || [t.ticket_number, t.title, t.customer_name ?? '', t.category_name ?? ''].some((s) => s.toLowerCase().includes(q))),
+    );
+  }, [all, view, priority, search]);
+
+  if (selectedId) {
+    return (
+      <div className="page">
+        <a className="crumb" href="#/queue">
+          <Icon name="back" size={16} /> กลับไปแดชบอร์ด
+        </a>
+        <TicketDetail id={selectedId} onChanged={reload} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="pagebar">
+        <div>
+          <h1>แดชบอร์ด</h1>
+          <p>คำร้องเรียงตามความเร่งด่วน แล้วตามเวลาที่รอ งานด่วนมากที่ยังไม่เริ่มดำเนินการเกิน 1 ชั่วโมงจะถูกยกระดับอัตโนมัติ</p>
+        </div>
+        <div className="pagebar__actions">
+          <button className="btn btn--secondary" onClick={() => void reload()}>
+            <Icon name="refresh" size={16} /> รีเฟรช
+          </button>
+        </div>
+      </div>
+
+      {loading && !data ? (
+        <Loading variant="dashboard" />
+      ) : error ? (
+        <ErrorNotice error={error} />
+      ) : (
+        <>
+          <div className="stats" role="group" aria-label="ตัวเลขสรุป เลือกเพื่อกรองรายการ">
+            {CARDS.map((v) => {
+              const n = count(v);
+              return (
+                <button
+                  key={v}
+                  className={`stat${ALERT.includes(v) && n > 0 ? ' stat--alert' : ''}`}
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                >
+                  <span className="stat__value">{n}</span>
+                  <span className="stat__label">{VIEWS[v].label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {all.length > 0 && (
+            <div className="breakdown" aria-label="คำร้องทั้งหมดแยกตามสถานะ">
+              <div className="bar">
+                {STATUS_ORDER.map((s) => {
+                  const n = all.filter((t) => stageOf(t.status) === s).length;
+                  // width + colour are data, so they stay inline
+                  return n ? <span key={s} className="bar__seg" style={{ width: `${(n / all.length) * 100}%`, background: STATUS_COLOR[s] }} /> : null;
+                })}
+              </div>
+              <div className="legend">
+                {STATUS_ORDER.map((s) => (
+                  <span key={s} className="legend__item">
+                    <span className="legend__dot" style={{ background: STATUS_COLOR[s] }} />
+                    {STATUS_LABEL[s]} <strong>{all.filter((t) => stageOf(t.status) === s).length}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Panel flush title={`คำร้อง: ${VIEWS[view].label}`}>
+            <div className="toolbar">
+              <label className="search">
+                <span className="visually-hidden">ค้นหา</span>
+                <Icon name="search" size={16} />
+                <input className="input" placeholder="ค้นหาเลขที่ เรื่อง ผู้แจ้ง" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </label>
+              <label className="visually-hidden" htmlFor="f-priority">ความเร่งด่วน</label>
+              <select id="f-priority" className="select" value={priority} onChange={(e) => setPriority(e.target.value as Priority | '')}>
+                <option value="">ความเร่งด่วน: ทั้งหมด</option>
+                {(Object.keys(PRIORITY_LABEL) as Priority[]).map((p) => (
+                  <option key={p} value={p}>ความเร่งด่วน: {PRIORITY_LABEL[p]}</option>
+                ))}
+              </select>
+              <span className="toolbar__count" aria-live="polite">{rows.length} รายการ</span>
+            </div>
+            {rows.length === 0 ? (
+              <div className="empty"><p>ไม่มีคำร้องในมุมมองนี้</p></div>
+            ) : (
+              <TicketTable tickets={rows} mode="queue" hrefFor={(t) => `/queue/${t.id}`} caption={`คำร้อง: ${VIEWS[view].label}`} />
+            )}
+          </Panel>
+        </>
+      )}
+    </div>
+  );
+}
