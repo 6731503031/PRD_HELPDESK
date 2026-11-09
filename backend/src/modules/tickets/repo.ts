@@ -48,10 +48,10 @@ export async function insertTicket(db: D1Database, input: CreateInput & { custom
   const tmp = `TMP-${crypto.randomUUID()}`;
   const res = await db
     .prepare(
-      `INSERT INTO tickets (ticket_number, title, description, priority, category_id, customer_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tickets (ticket_number, title, description, location, priority, category_id, customer_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(tmp, input.title, input.description, input.priority, input.category_id, input.customer_id)
+    .bind(tmp, input.title, input.description, input.location, input.priority, input.category_id, input.customer_id)
     .run();
   const id = Number(res.meta.last_row_id);
   await db.prepare('UPDATE tickets SET ticket_number = ? WHERE id = ?').bind(ticketNumber(id), id).run();

@@ -51,7 +51,7 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
   if (!ticket) throw notFound('Ticket not found');
   assertReadyForRepair(ticket);
 
-  const repair = validateRepairRequest(body, { title: ticket.title, description: ticket.description });
+  const repair = validateRepairRequest(body, { title: ticket.title, description: ticket.description, location: ticket.location ?? '' });
   if (!repair.ok) throw badRequest(repair.message);
 
   // Team 10 answers 3 s at most; if it is down, nothing is saved and the rest of Helpdesk keeps working.
@@ -90,6 +90,9 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
     maintenance_work_order_id: id.id,
     maintenance_status: sent.workOrder.status,
     maintenance_status_at: nowSql(),
+    maintenance_category: repair.category,
+    // An older ticket without a location keeps the one the admin typed, so it shows on the ticket too.
+    ...(ticket.location ? {} : { location: repair.location }),
   });
   await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `Sent to Team 10, work order ${id.id}`);
   await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: id.id });
@@ -129,6 +132,7 @@ maintenanceRoutes.post('/tickets/:id/link-maintenance', requireRole('admin'), as
     maintenance_work_order_id: checked.id,
     maintenance_status: found.workOrder.status,
     maintenance_status_at: nowSql(),
+    maintenance_category: null, // linked by hand: the category was chosen in Team 10's own screen
   });
   await recordStatus(c.env.DB, ticket.id, ticket.status, ticket.status, user.id, 'helpdesk', `Linked work order ${checked.id}`);
   await publishEvent(c.env, 'ticket.work_order_linked', ticket, { workOrderId: checked.id });

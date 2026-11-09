@@ -24,6 +24,7 @@ import {
   WELLBEING_SLUGS,
   canResolve,
   canTransition,
+  checkLocation,
   canViewTicket,
   editableFields,
   isStaff,
@@ -119,6 +120,11 @@ async function patchTicket(c: Context<AppEnv>) {
 
   // Validate every field that reaches SQL
   if ('title' in fields && String(fields.title).trim().length < 5) throw badRequest('Subject is too short');
+  if ('location' in fields) {
+    fields.location = String(fields.location ?? '').trim();
+    const problem = checkLocation(fields.location as string);
+    if (problem) throw badRequest(problem);
+  }
   if ('priority' in fields && !PRIORITIES.includes(fields.priority as never)) throw badRequest('Invalid priority');
   if ('category_id' in fields && !(await categoryIsActive(c.env.DB, Number(fields.category_id)))) {
     throw badRequest('category_id does not exist or is disabled');

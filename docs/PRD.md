@@ -147,7 +147,7 @@ Users shall authenticate through the university Identity platform. Helpdesk shal
 Helpdesk shall receive enough identity context to determine user identity, role, and permissions.
 
 ### FR-03 — Create Ticket
-A logged-in requester shall be able to create a ticket with at least subject, description, category, and urgency. The system shall generate a unique Ticket ID.
+A logged-in requester shall be able to create a ticket with at least subject, description, location (where the problem is, e.g. building and room; required for every category), category, and urgency. The system shall generate a unique Ticket ID.
 
 ### FR-04 — Ticket Created Event
 After successful ticket creation, Helpdesk shall publish `ticket.created`.
@@ -189,7 +189,7 @@ Helpdesk stores only:
 `maintenance_work_order_id`
 
 ### 6.2 Send or Link Work Order
-**Main way (send).** From the ticket page the Admin checks the repair text (title and description, pre-filled from the ticket and editable so personal details can be removed) and sends it. Helpdesk calls Maintenance `POST /api/v1/work-orders` with `ticketRef`, `title`, `description`, `location` (typed by the Admin, since Helpdesk tickets have no location field) and `category` (one of Maintenance's five: `Plumbing`, `Electrical`, `HVAC`, `Safety`, `Not sure`), then links the returned work-order ID to the ticket. Only Facility tickets can be sent. The Admin never has to open the Maintenance system.
+**Main way (send).** From the ticket page the Admin checks the repair text (title and description, pre-filled from the ticket and editable so personal details can be removed) and sends it. Helpdesk calls Maintenance `POST /api/v1/work-orders` with `ticketRef`, `title`, `description`, `location` (taken from the ticket, where the requester typed it; the Admin can correct it) and `category` (one of Maintenance's five: `Plumbing`, `Electrical`, `HVAC`, `Safety`, `Not sure`), then links the returned work-order ID to the ticket. Only Facility tickets can be sent. The Admin never has to open the Maintenance system.
 
 **Backup way (link).** If the Admin already has a work-order ID from Maintenance, they can link it by hand. Helpdesk checks it with `GET /api/v1/work-orders/{id}` first.
 
@@ -326,7 +326,7 @@ It accepts ticket intake information and returns validated suggestions for categ
 
 ### 10.1 Helpdesk-Owned Entities
 
-**Ticket** — id, requester_id, category_id, subject, description, priority, status, maintenance_work_order_id, resolution_note, timestamps.
+**Ticket** — id, requester_id, category_id, subject, description, location, priority, status, maintenance_work_order_id, resolution_note, timestamps.
 
 **Category** — id, name, active/deactivated state.
 

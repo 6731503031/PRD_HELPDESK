@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   ticket_number TEXT NOT NULL UNIQUE,              -- "TKT-00012", derived from id
   title TEXT NOT NULL,                             -- PRD: subject
   description TEXT NOT NULL,
+  location TEXT,                                   -- where the problem is (requester), sent to Team 10
   status TEXT NOT NULL DEFAULT 'open'
         CHECK (status IN ('open','assigned','in_progress','resolved','closed')),
   priority TEXT NOT NULL DEFAULT 'medium'
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   maintenance_work_order_id TEXT,                  -- PRD §6.1: the ONLY Maintenance data we store
   maintenance_status TEXT,                         -- last status received via webhook (display only)
   maintenance_status_at TEXT,
+  maintenance_category TEXT,                       -- Team 10 category chosen when sending (Plumbing / Electrical / HVAC / Safety / Not sure)
   escalated_at TEXT,                               -- PRD §14: set once when ticket.escalated is published
   ai_category_id INTEGER,                          -- PRD §8: triage suggestion kept for the agent (advisory only)
   ai_priority TEXT,
