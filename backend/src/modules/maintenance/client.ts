@@ -49,6 +49,9 @@ export async function fetchWorkOrder(env: Bindings, id: string, correlationId: s
   }
 }
 
+/** Reason given when Team 10 has no POST /work-orders (404/405). */
+export const CREATE_NOT_SUPPORTED = 'create not supported';
+
 /** What Helpdesk sends to create a work order. No personal data: the admin checks the text before sending. */
 export type NewWorkOrder = { ticketRef: string; title: string; description: string };
 
@@ -89,6 +92,8 @@ export async function createWorkOrder(env: Bindings, input: NewWorkOrder, correl
     });
     const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     if (res.status === 401 || res.status === 403) return { kind: 'unavailable', reason: `HTTP ${res.status}` };
+    // No such endpoint (yet): Team 10 has not opened "create from Helpdesk". The admin uses the manual link instead.
+    if (res.status === 404 || res.status === 405) return { kind: 'unavailable', reason: CREATE_NOT_SUPPORTED };
     if (res.status >= 400 && res.status < 500) return { kind: 'rejected', message: errorMessage(body) ?? `HTTP ${res.status}` };
     if (!res.ok) return { kind: 'unavailable', reason: `HTTP ${res.status}` };
     const wo = ((body.data as Record<string, unknown> | undefined) ?? body) as Partial<WorkOrder>;

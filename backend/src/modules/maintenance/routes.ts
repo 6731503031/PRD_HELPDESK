@@ -17,7 +17,7 @@ import { requireRole } from '../../core/auth';
 import { ApiError, badRequest, conflict, notFound, parseId, readJson } from '../../core/http';
 import { publishEvent } from '../events/publish';
 import { getTicket, recordStatus, updateTicket } from '../tickets/repo';
-import { createWorkOrder, fetchWorkOrder } from './client';
+import { CREATE_NOT_SUPPORTED, createWorkOrder, fetchWorkOrder } from './client';
 import { parseWebhookEvent, validateRepairRequest, validateWorkOrderId } from './envelope';
 import { mapWorkOrderStatus, nextTicketStatus } from './mapping';
 import { verifyWebhook } from './signature';
@@ -62,7 +62,11 @@ maintenanceRoutes.post('/tickets/:id/send-maintenance', requireRole('admin'), as
   if (sent.kind === 'rejected') throw badRequest(`Team 10 ไม่รับคำขอ: ${sent.message}`);
   if (sent.kind === 'unavailable') {
     console.warn(JSON.stringify({ level: 'warn', msg: 'maintenance create failed', reason: sent.reason, ticket: ticket.ticket_number }));
-    throw new ApiError(503, 'ServiceUnavailable', TEAM10_DOWN, { reason: sent.reason });
+    const message =
+      sent.reason === CREATE_NOT_SUPPORTED
+        ? 'Team 10 ยังไม่เปิดรับงานจาก Helpdesk ให้แจ้งซ่อมในระบบของ Team 10 แล้วใช้ "ผูกเลขใบงานเอง" ในขั้นที่ 2'
+        : TEAM10_DOWN;
+    throw new ApiError(503, 'ServiceUnavailable', message, { reason: sent.reason });
   }
 
   const id = validateWorkOrderId(sent.workOrder.id);

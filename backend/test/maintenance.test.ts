@@ -188,6 +188,13 @@ describe('Team 10 client: create a work order (POST /work-orders)', () => {
     reply(200, { id: 'wo-1', status: 'in_progress' });
     expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'created', workOrder: { id: 'wo-1', status: 'in_progress' } });
   });
+  it('no POST endpoint at Team 10 (404/405): unavailable with a clear reason, not a rejection', async () => {
+    reply(404, { error: { code: 'NOT_FOUND', message: 'Not found' } });
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'unavailable', reason: 'create not supported' });
+    vi.restoreAllMocks();
+    reply(405, {});
+    expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'unavailable', reason: 'create not supported' });
+  });
   it("passes Team 10's 400 message on to the admin", async () => {
     reply(400, { error: { code: 'VALIDATION', message: 'title is required' } });
     expect(await createWorkOrder(env(), input, 'c1')).toEqual({ kind: 'rejected', message: 'title is required' });
