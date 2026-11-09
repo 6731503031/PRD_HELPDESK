@@ -3,6 +3,7 @@
  */
 import { useState, type FormEvent } from 'react';
 import { ApiError, api } from '../api/client';
+import { getAiSuggestion } from '../api/aiService';
 import type { Priority, Suggestion, Ticket } from '../api/types';
 import { ErrorNotice, Field, Notice, Panel } from '../components/ui';
 import { PRIORITY_HINT, PRIORITY_LABEL, ROUTE_LABEL } from '../lib/format';
@@ -29,7 +30,7 @@ export function CreateTicket() {
     setSuggesting(true);
     setSuggestError(null);
     try {
-      setSuggestion(await api.suggest({ subject, description, urgency: urgency || undefined }));
+      setSuggestion(await getAiSuggestion({ subject, description, urgency: urgency || undefined }));
     } catch (err) {
       setSuggestion(null);
       setSuggestError(err);
