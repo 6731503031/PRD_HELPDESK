@@ -15,10 +15,14 @@ binding = "AI"
 [triggers]
 crons = ["*/15 * * * *"]
 
+# Values for LOCAL dev (`wrangler dev`): Team 10 empty = mock work orders (WO-MOCK-*), so tests run offline.
+# Production values are set by `npm run deploy` (package.json): ENVIRONMENT=production + Team 10's real URLs
+#   API:    https://maintenance-team10.vercel.app/api/v1
+#   portal: https://maintenance-team10-kwxt.vercel.app/
+# To talk to the real Team 10 locally, put MAINTENANCE_API_URL (+ the key) in .dev.vars.
 [vars]
 ENVIRONMENT = "development"
 WELLBEING_API_URL = "https://wellbeing-intake.vercel.app/api/v1"
-# Team 10 base URL — fill in after Team 10 replies (P3)
 MAINTENANCE_API_URL = ""
 # Team 10 "report a repair" page for the admin button; may contain {ticketRef} (replaced by the ticket number)
 MAINTENANCE_PORTAL_URL = ""
@@ -26,7 +30,8 @@ MAINTENANCE_PORTAL_URL = ""
 EVENT_HUB_URL = ""
 
 # Secrets (never commit):
-#   wrangler secret put MAINTENANCE_WEBHOOK_SECRET
+#   wrangler secret put MAINTENANCE_API_KEY          (Team 10's HELPDESK_API_KEY)
+#   wrangler secret put MAINTENANCE_WEBHOOK_SECRET   (Team 10's HELPDESK_WEBHOOK_SECRET)
 #   wrangler secret put EVENT_SIGNING_SECRET
 # Local dev: put them in .dev.vars (git-ignored)
 
