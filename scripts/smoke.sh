@@ -66,6 +66,8 @@ code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Projector i
 ID2=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])'); NUM2=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["ticket_number"])')
 check "link: requester → 403"            403 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ALICE[@]}" "${J[@]}" -d "{\"work_order_id\":\"$WO\"}")"
 check "link: our own TKT number → 400"   400 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"$NUM2\"}")"
+check "link: before 'start' → 409"       409 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"$WO\"}")"
+check "admin starts the work → 200"      200 "$(code -X PATCH "$BASE/tickets/$ID2" "${ADMIN[@]}" "${J[@]}" -d '{"status":"in_progress"}')"
 check "link: Team 10 unreachable → 503"  503 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"work_order_id":"WO-REAL-1"}')"
 check "link: work order → 200"           200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"$WO\"}")"
 check "link: a second one → 409"         409 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
@@ -81,6 +83,19 @@ check "webhook: unknown status → 400"    400 "$(hook "$(evt "e-$RUN-4" "$WO" t
 check "webhook: not JSON → 400"          400 "$(hook 'not json')"
 check "webhook: cancelled → 200"         200 "$(hook "$(evt "e-$RUN-5" "$WO" cancelled)")"
 check "link: new one after cancel → 200" 200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
+echo "--- Team 10: send the repair from Helpdesk (main way; local run answers a WO-MOCK-<uuid>) ---"
+code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Light in B-301 keeps flickering","description":"The ceiling light flickers all day","category_id":5,"urgency":"medium"}' >/dev/null
+ID3=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])')
+check "send: requester → 403"            403 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ALICE[@]}" "${J[@]}" -d '{}')"
+check "send: before 'start' → 409"       409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
+check "admin starts the work → 200"      200 "$(code -X PATCH "$BASE/tickets/$ID3" "${ADMIN[@]}" "${J[@]}" -d '{"status":"in_progress"}')"
+check "send: empty title → 400"          400 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":" "}')"
+check "send: repair → 200"               200 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{"title":"Flickering light B-301","description":"Ceiling light flickers all day"}')"
+WO3=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["maintenance_work_order_id"])')
+echo "      work order $WO3"
+check "send: again → 409"                409 "$(code -X POST "$BASE/tickets/$ID3/send-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
+check "send: webhook for it → 200"       200 "$(hook "$(evt "e-$RUN-6" "$WO3" in_progress)")"
+check "  sent ticket is in_progress"     "in_progress/in_progress" "$(curl -s "$BASE/tickets/$ID3" "${ADMIN[@]}" | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"];print(d["status"]+"/"+str(d["maintenance_status"]))')"
 check "AI suggest: empty body → 422" 422 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"
 check "admin stats (P4)"           501 "$(code "$BASE/admin/stats" "${ADMIN[@]}")"
 echo "=== $pass passed, $fail failed ==="

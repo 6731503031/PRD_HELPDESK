@@ -48,3 +48,62 @@ export async function fetchWorkOrder(env: Bindings, id: string, correlationId: s
     return { kind: 'unavailable', reason: err instanceof Error ? err.name : 'error' };
   }
 }
+
+/** What Helpdesk sends to create a work order. No personal data: the admin checks the text before sending. */
+export type NewWorkOrder = { ticketRef: string; title: string; description: string };
+
+export type CreateResult =
+  | { kind: 'created'; workOrder: WorkOrder }
+  | { kind: 'rejected'; message: string }
+  | { kind: 'unavailable'; reason: string };
+
+/**
+ * Send a repair to Team 10 so the admin never has to leave Helpdesk:
+ *   POST {MAINTENANCE_API_URL}/work-orders  { ticketRef, title, description }
+ *  - same headers as the lookup (X-Correlation-Id, Bearer key when set), same 3 s timeout
+ *  - 201 (new) or 200 (Team 10 already has one for this ticketRef) -> created; reads {data:{id,status}} or the bare object
+ *  - other 4xx (not 401/403) -> rejected, with Team 10's message to show the admin
+ *  - 401/403, 5xx, timeout, network error, odd body -> unavailable (never throws)
+ *  - no MAINTENANCE_API_URL: in development, answers a mock work order `WO-MOCK-<uuid>` (the lookup knows it too)
+ */
+export async function createWorkOrder(env: Bindings, input: NewWorkOrder, correlationId: string): Promise<CreateResult> {
+  const base = (env.MAINTENANCE_API_URL ?? '').trim().replace(/\/+$/, '');
+  if (!base) {
+    if (env.ENVIRONMENT === 'development') {
+      return { kind: 'created', workOrder: { id: `${MOCK_PREFIX}${crypto.randomUUID()}`, status: 'reported' } };
+    }
+    return { kind: 'unavailable', reason: 'not configured' };
+  }
+  try {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Correlation-Id': correlationId,
+    };
+    if (env.MAINTENANCE_API_KEY) headers.Authorization = `Bearer ${env.MAINTENANCE_API_KEY}`;
+    const res = await fetch(`${base}/work-orders`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(MAINTENANCE_TIMEOUT_MS),
+    });
+    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    if (res.status === 401 || res.status === 403) return { kind: 'unavailable', reason: `HTTP ${res.status}` };
+    if (res.status >= 400 && res.status < 500) return { kind: 'rejected', message: errorMessage(body) ?? `HTTP ${res.status}` };
+    if (!res.ok) return { kind: 'unavailable', reason: `HTTP ${res.status}` };
+    const wo = ((body.data as Record<string, unknown> | undefined) ?? body) as Partial<WorkOrder>;
+    if (typeof wo.id !== 'string' || !wo.id || typeof wo.status !== 'string' || !wo.status) {
+      return { kind: 'unavailable', reason: 'unexpected response' };
+    }
+    return { kind: 'created', workOrder: { id: wo.id, status: wo.status } };
+  } catch (err) {
+    return { kind: 'unavailable', reason: err instanceof Error ? err.name : 'error' };
+  }
+}
+
+/** Team 10 errors look like { error: { code, message } }; a plain { message } is accepted too. */
+function errorMessage(body: Record<string, unknown>): string | null {
+  const e = body.error;
+  const m = typeof e === 'object' && e !== null ? (e as Record<string, unknown>).message : body.message;
+  return typeof m === 'string' && m.trim() ? m.trim().slice(0, 300) : null;
+}

@@ -1,7 +1,29 @@
 /**
- * Input checks for the two Team 10 integration points — PURE (easy to unit test).
+ * Input checks for the Team 10 integration points — PURE (easy to unit test).
  * Owner: P3 (Maintenance Integration)
  */
+
+/** Same limits as a ticket's subject and description (tickets/rules.ts). */
+export const REPAIR_TITLE_MAX = 150;
+export const REPAIR_DESCRIPTION_MAX = 5000;
+
+/**
+ * The repair the admin sends to Team 10. Missing fields fall back to the ticket's own subject and description;
+ * the admin sees and can edit both before sending (so personal details can be taken out).
+ */
+export function validateRepairRequest(
+  body: { title?: unknown; description?: unknown },
+  fallback: { title: string; description: string },
+): { ok: true; title: string; description: string } | { ok: false; message: string } {
+  const pick = (v: unknown, d: string) => (typeof v === 'string' ? v : d).trim();
+  const title = pick(body.title, fallback.title);
+  const description = pick(body.description, fallback.description);
+  if (title.length < 3) return { ok: false, message: 'กรุณาใส่หัวเรื่องงานซ่อมอย่างน้อย 3 ตัวอักษร' };
+  if (title.length > REPAIR_TITLE_MAX) return { ok: false, message: `หัวเรื่องยาวเกิน ${REPAIR_TITLE_MAX} ตัวอักษร` };
+  if (description.length < 5) return { ok: false, message: 'กรุณาอธิบายงานซ่อมอย่างน้อย 5 ตัวอักษร' };
+  if (description.length > REPAIR_DESCRIPTION_MAX) return { ok: false, message: `รายละเอียดยาวเกิน ${REPAIR_DESCRIPTION_MAX.toLocaleString('en-US')} ตัวอักษร` };
+  return { ok: true, title, description };
+}
 
 export type WebhookEvent = { eventId: string; type: 'maintenance.status_changed'; workOrderId: string; status: string };
 

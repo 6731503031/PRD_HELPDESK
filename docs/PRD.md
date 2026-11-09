@@ -55,7 +55,7 @@ Capabilities:
 - View the Admin Dashboard of all tickets and basic ticket counts.
 - Triage tickets: change category, priority, and status.
 - Chat with the requester on a ticket.
-- Link a ticket to a Maintenance work-order ID (Team 10).
+- Send a repair to Maintenance (Team 10) from the ticket page; the returned work-order ID is linked automatically (backup: link an ID by hand).
 - Resolve tickets.
 
 Physical repair work is done by the Maintenance platform (Team 10) through its own work orders; the Admin links the ticket and confirms the result.
@@ -188,8 +188,12 @@ Helpdesk stores only:
 
 `maintenance_work_order_id`
 
-### 6.2 Link Work Order
-The Admin shall be able to link a Helpdesk Ticket to an existing Maintenance Work Order ID. A ticket may reference at most one active Maintenance work-order ID.
+### 6.2 Send or Link Work Order
+**Main way (send).** From the ticket page the Admin checks the repair text (title and description, pre-filled from the ticket and editable so personal details can be removed) and sends it. Helpdesk calls Maintenance `POST /api/v1/work-orders` with `ticketRef`, `title` and `description`, then links the returned work-order ID to the ticket. The Admin never has to open the Maintenance system.
+
+**Backup way (link).** If the Admin already has a work-order ID from Maintenance, they can link it by hand. Helpdesk checks it with `GET /api/v1/work-orders/{id}` first.
+
+Either way, the Admin first triages the ticket and starts the work (status In progress); an Open ticket cannot be sent or linked. A ticket may reference at most one active Maintenance work-order ID, a work-order ID belongs to one ticket only, and no personal data (names, emails, phone numbers) is sent.
 
 ### 6.3 Incoming Maintenance Event
 Helpdesk shall consume `maintenance.status_changed`.
@@ -307,6 +311,7 @@ Keyword + urgency rules
 
 ### 9.2 Supporting Integration Endpoints
 Implementation may expose:
+- `POST /tickets/{id}/send-maintenance`
 - `POST /tickets/{id}/link-maintenance`
 - `POST /webhooks/maintenance`
 

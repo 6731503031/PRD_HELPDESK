@@ -116,7 +116,7 @@ PRD กลางบังคับ 3 หน้าหลัก: **แจ้งป
 
 | # | ฟีเจอร์ | PRD | สถานะ |
 |---|---|---|---|
-| F13 | ผูกคำร้องกับเลขใบงาน (≤ 1 ใบที่ยังเปิด) เก็บแค่ `maintenance_work_order_id` | §6.1–6.2 | 🖥️ ✅ (ผูกจริงเมื่อ Team 10 ให้ URL · ตอนนี้ทดสอบด้วย `WO-MOCK-*`) |
+| F13 | ส่งแจ้งซ่อมไป Team 10 จากหน้าคำร้อง แล้วผูกเลขใบงานที่ได้กลับมาให้อัตโนมัติ (ทางสำรอง: ผูกเลขเอง) ≤ 1 ใบที่ยังเปิด เก็บแค่ `maintenance_work_order_id` | §6.1–6.2 | 🖥️ ✅ (ต่อจริงเมื่อ Team 10 เปิด `POST /work-orders` · ตอนนี้ทดสอบด้วย `WO-MOCK-*`) |
 | F14 | รับ webhook `maintenance.status_changed` → อัปเดตคำร้อง | §6.3 | ✅ (รอ Team 10 ยืนยันชื่อสถานะ) |
 | F29 | ตรวจลายเซ็น HMAC + กัน event ซ้ำ | §13, §18 | ✅ |
 | F30 | เก็บ secret ใน environment ไม่ใส่ใน git | §13 | 🔸 โค้ดพร้อม · production ต้อง `wrangler secret put MAINTENANCE_WEBHOOK_SECRET` (ยังไม่ได้ตั้ง) |
@@ -168,7 +168,8 @@ PRD กลางบังคับ 3 หน้าหลัก: **แจ้งป
 | PATCH | `/tickets/:id` | เจ้าของ / staff | แก้ไขตามสิทธิ์ | P1 | ✅ |
 | POST | `/tickets/:id/resolve` | admin | ปิดงาน | P1 | ✅ |
 | GET / POST | `/tickets/:id/comments` | เจ้าของ / staff | ข้อความแชท | P2 | ✅ |
-| POST | `/tickets/:id/link-maintenance` | admin | ผูกใบงาน | P3 | ✅ |
+| POST | `/tickets/:id/send-maintenance` | admin | ส่งแจ้งซ่อมไป Team 10 แล้วผูกใบงานที่ได้ | P3 | ✅ |
+| POST | `/tickets/:id/link-maintenance` | admin | ผูกใบงานเอง (ทางสำรอง) | P3 | ✅ |
 | POST | `/webhooks/maintenance` | Team 10 (HMAC) | รับสถานะงานซ่อม | P3 | ✅ |
 | GET | `/wellbeing/services` | ทุกคน | catalogue Team 16 | P3 | ✅ |
 | POST | `/tickets/suggest` | ล็อกอิน | AI แนะนำ | P4 | ⏳ |
