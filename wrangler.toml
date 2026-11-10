@@ -11,6 +11,11 @@ directory = "./public"
 [ai]
 binding = "AI"
 
+# Workers Logs: keep console output (e.g. the "maintenance webhook" lines) so past requests can be checked
+# in the Cloudflare dashboard, not only live with `wrangler tail`. Our logs never contain bodies or secrets.
+[observability]
+enabled = true
+
 # PRD §14 escalation check every 15 minutes (P2)
 [triggers]
 crons = ["*/15 * * * *"]

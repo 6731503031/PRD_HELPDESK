@@ -147,6 +147,12 @@ maintenanceRoutes.post('/tickets/:id/link-maintenance', requireRole('admin'), as
 
 // ---------- F14 + F29 Webhook (Team 10 is a service, not a user: no requireAuth) ----------
 maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
+  // Diagnostics: one JSON line per webhook with its outcome, so a rejected event can be explained from the logs.
+  // Never the body, the signature or the secret — only ids, the status word and field NAMES (no personal data).
+  const trace = (http: number, outcome: string, extra: Record<string, unknown> = {}) =>
+    console.log(JSON.stringify({ level: http >= 400 ? 'warn' : 'info', msg: 'maintenance webhook', http, outcome, correlationId: c.get('correlationId'), ...extra }));
+  const short = (v: unknown) => (typeof v === 'string' ? v.slice(0, 64) : v === undefined ? undefined : typeof v);
+
   // The signature covers the RAW bytes, so read the text before anything parses it.
   const rawBody = await c.req.text();
   const verdict = await verifyWebhook({
@@ -157,6 +163,13 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
     now: new Date(),
   });
   if (!verdict.ok) {
+    const ts = Number(c.req.header('x-timestamp'));
+    trace(verdict.reason === 'not configured' ? 503 : 401, `signature: ${verdict.reason}`, {
+      hasTimestamp: !!c.req.header('x-timestamp'),
+      hasSignature: !!c.req.header('x-signature'),
+      skewSeconds: Number.isFinite(ts) ? Math.round(Date.now() / 1000 - ts) : undefined,
+      bodyBytes: rawBody.length,
+    });
     if (verdict.reason === 'not configured') throw new ApiError(503, 'ServiceUnavailable', 'The Helpdesk webhook secret is not configured');
     throw new ApiError(401, 'Unauthorized', `Invalid signature (${verdict.reason})`);
   }
@@ -165,25 +178,40 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
   try {
     body = JSON.parse(rawBody);
   } catch {
+    trace(400, 'body is not JSON', { bodyBytes: rawBody.length });
     throw badRequest('Body is not valid JSON');
   }
   const parsed = parseWebhookEvent(body);
-  if (!parsed.ok) throw badRequest(parsed.message);
+  if (!parsed.ok) {
+    const b = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
+    const d = (typeof b.data === 'object' && b.data !== null ? b.data : {}) as Record<string, unknown>;
+    trace(400, `envelope: ${parsed.message}`, { type: short(b.type), keys: Object.keys(b), dataKeys: Object.keys(d) });
+    throw badRequest(parsed.message);
+  }
   const { eventId, type, workOrderId, status } = parsed.event;
 
   const effect = mapWorkOrderStatus(status);
-  if (!effect) throw badRequest(`Unknown status ${status}`);
+  if (!effect) {
+    trace(400, 'unknown status', { eventId, workOrderId, status: short(status) });
+    throw badRequest(`Unknown status ${status}`);
+  }
 
   // Idempotency: an event we already applied changes nothing and is answered 200.
   const seen = await c.env.DB.prepare('SELECT 1 AS x FROM processed_events WHERE event_id = ?').bind(eventId).first();
-  if (seen) return c.json({ received: true, duplicate: true });
+  if (seen) {
+    trace(200, 'duplicate event id, ignored', { eventId, workOrderId, status });
+    return c.json({ received: true, duplicate: true });
+  }
 
   const ticket = await c.env.DB.prepare(
     `SELECT id, ticket_number, status, maintenance_status FROM tickets WHERE maintenance_work_order_id = ?`,
   )
     .bind(workOrderId)
     .first<{ id: number; ticket_number: string; status: 'open' | 'in_progress' | 'resolved' | 'closed'; maintenance_status: string | null }>();
-  if (!ticket) return c.json({ received: true, linked: false }, 202); // valid event, no ticket linked to this work order
+  if (!ticket) {
+    trace(202, 'no ticket linked to this work order', { eventId, workOrderId, status });
+    return c.json({ received: true, linked: false }, 202); // valid event, no ticket linked to this work order
+  }
 
   const next = nextTicketStatus(ticket.status, effect);
   const sets = ['maintenance_status = ?', "maintenance_status_at = datetime('now')", "updated_at = datetime('now')"];
@@ -203,9 +231,13 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
       ).bind(ticket.id, ticket.status, next ?? ticket.status, effect.label),
     ]);
   } catch (err) {
-    if (String(err).includes('UNIQUE')) return c.json({ received: true, duplicate: true }); // the same event raced us
+    if (String(err).includes('UNIQUE')) {
+      trace(200, 'duplicate event id (race), ignored', { eventId, workOrderId, status });
+      return c.json({ received: true, duplicate: true }); // the same event raced us
+    }
     throw err;
   }
+  trace(200, 'applied', { eventId, workOrderId, status, ticket: ticket.ticket_number, ticketStatus: next ?? ticket.status });
 
   // Tell the requester in the chat — real progress only, once per stage, never on a ticket already finished.
   const chat = repairMessage(ticket.maintenance_status, status);
