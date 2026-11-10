@@ -76,7 +76,7 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
               </>
             )}
 
-            <WellbeingCard ticket={t} staff={staff} />
+            <WellbeingCard ticket={t} staff={staff} onChanged={changed} />
 
             {staff && !closed && <SystemSuggestion ticket={t} />}
 

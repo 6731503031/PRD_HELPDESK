@@ -41,6 +41,7 @@ import {
   updateTicket,
   attachNames,
 } from './repo';
+import { resolveTicket } from './resolve';
 
 export const ticketRoutes = new Hono<AppEnv>();
 
@@ -182,16 +183,12 @@ ticketRoutes.post('/tickets/:id/resolve', async (c) => {
 
   const body = await readJson<{ resolution_note?: string }>(c).catch(() => ({}) as { resolution_note?: string });
   const note = body.resolution_note?.trim() || null;
-  await c.env.DB
-    .prepare(
-      `UPDATE tickets SET status = 'resolved', resolved_at = datetime('now'), resolution_note = ?, updated_at = datetime('now') WHERE id = ?`,
-    )
-    .bind(note, ticket.id)
-    .run();
-  await recordStatus(c.env.DB, ticket.id, ticket.status, 'resolved', user.id, 'helpdesk', note);
-  await postSystemMessage(c.env.DB, ticket.id, MESSAGES.resolved(note));
-
-  const updated = (await getTicket(c.env.DB, ticket.id))!;
-  await publishEvent(c.env, 'ticket.resolved', updated);
+  const updated = await resolveTicket(c.env, ticket, {
+    by: user.id,
+    source: 'helpdesk',
+    resolutionNote: note,
+    historyNote: note,
+    chat: MESSAGES.resolved(note),
+  });
   return c.json({ message: 'Ticket resolved', data: await named(c, updated) });
 });

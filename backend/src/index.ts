@@ -26,6 +26,7 @@ import { adminRoutes } from './modules/admin/routes';
 import { wellbeingRoutes } from './modules/wellbeing/routes';
 import { contactsRoutes } from './modules/contacts/routes';
 import { syncOpenWorkOrders } from './modules/maintenance/sync';
+import { syncSentReferrals } from './modules/wellbeing/referral';
 import { runEscalation } from './modules/events/escalation';
 
 // ---------- API ----------
@@ -89,6 +90,12 @@ export default {
       syncOpenWorkOrders(env)
         .then((r) => console.log(JSON.stringify({ msg: 'maintenance sync run', ...r })))
         .catch((err) => console.error(JSON.stringify({ level: 'error', msg: 'maintenance sync run failed', err: String(err) }))),
+    );
+    // Same idea for Wellbeing referrals still waiting (only while WELLBEING_REFERRALS = 'on').
+    ctx.waitUntil(
+      syncSentReferrals(env)
+        .then((r) => console.log(JSON.stringify({ msg: 'wellbeing referral sync run', ...r })))
+        .catch((err) => console.error(JSON.stringify({ level: 'error', msg: 'wellbeing referral sync run failed', err: String(err) }))),
     );
   },
 } satisfies ExportedHandler<Bindings>;

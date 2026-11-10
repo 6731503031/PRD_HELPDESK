@@ -60,7 +60,13 @@ export type WellbeingSuggestion = {
   emergency_url: string;
   booking_url: string;
   suggested_service: WellbeingService | null;
+  /** Referral to Wellbeing is switched on (WELLBEING_REFERRALS). */
+  referrals_enabled: boolean;
+  /** The newest referral of this ticket, or null. */
+  referral: { status: ReferralStatus; status_at: string | null } | null;
 };
+
+export type ReferralStatus = 'sent' | 'approved' | 'declined' | 'cancelled' | 'withdrawn';
 
 export type HistoryEntry = {
   from_status: string | null;

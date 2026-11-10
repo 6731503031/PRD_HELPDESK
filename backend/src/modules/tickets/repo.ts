@@ -76,7 +76,7 @@ export async function recordStatus(
   from: TicketStatus | null,
   to: TicketStatus | string,
   changedBy: number | null,
-  source: 'helpdesk' | 'maintenance' | 'system' = 'helpdesk',
+  source: 'helpdesk' | 'maintenance' | 'wellbeing' | 'system' = 'helpdesk',
   note: string | null = null,
 ) {
   await db
