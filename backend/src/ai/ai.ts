@@ -8,7 +8,11 @@
 import type { Bindings } from '../core/env';
 import type { TriageInput } from './fallback';
 
-export const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+/**
+ * @cf/meta/llama-3.1-8b-instruct was retired by Cloudflare on 2026-05-30 (AiError 5028), so every suggestion fell
+ * back to the keyword rules. Llama 3.3 70B fast: ~1 s, reads English and Thai, no retirement date announced.
+ */
+export const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const AI_TIMEOUT_MS = 4000;
 
 export async function askAi(env: Bindings, input: TriageInput): Promise<unknown | null> {
@@ -46,7 +50,9 @@ export async function askAi(env: Bindings, input: TriageInput): Promise<unknown 
     const text = getResponseText(output);
     const json = text?.match(/\{[\s\S]*\}/)?.[0];
     return json ? JSON.parse(json) as unknown : null;
-  } catch {
+  } catch (err) {
+    // Still never throws (the fallback answers), but say why — a retired model once went unnoticed for months.
+    console.warn(JSON.stringify({ level: 'warn', msg: 'workers ai failed, using fallback rules', model: AI_MODEL, error: String(err).slice(0, 300) }));
     return null;
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
@@ -58,6 +64,8 @@ function getResponseText(output: unknown): string | null {
   if (!output || typeof output !== 'object') return null;
   const value = output as { response?: unknown; choices?: { message?: { content?: unknown } }[] };
   if (typeof value.response === 'string') return value.response;
+  // Newer models may hand back the JSON already parsed.
+  if (value.response && typeof value.response === 'object') return JSON.stringify(value.response);
   const content = value.choices?.[0]?.message?.content;
   return typeof content === 'string' ? content : null;
 }

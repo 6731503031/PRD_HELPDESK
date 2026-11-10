@@ -93,6 +93,29 @@ describe('Workers AI adapter', () => {
   });
 });
 
+describe('Workers AI adapter: current model', () => {
+  it('uses a model that is not retired', async () => {
+    let model = '';
+    const env = { AI: { run: async (m: string) => { model = m; return { response: '{}' }; } } } as never;
+    await askAi(env, { subject: 'Wi-Fi issue', description: 'Cannot connect', categories });
+    expect(model).not.toBe('@cf/meta/llama-3.1-8b-instruct'); // retired 2026-05-30
+  });
+
+  it('reads a response that is already a JSON object', async () => {
+    const env = {
+      AI: { run: async () => ({ response: { category_id: 5, priority: 'high', route: 'maintenance', reason: 'aircon' }, choices: [] }) },
+    } as never;
+    expect(await askAi(env, { subject: 'Aircon broken', description: 'Room B-204 is hot', categories })).toMatchObject({ category_id: 5 });
+  });
+
+  it('reads the OpenAI-style choices shape', async () => {
+    const env = {
+      AI: { run: async () => ({ choices: [{ message: { content: '{"category_id":1,"priority":"low","route":"it_support","reason":"wifi"}' } }] }) },
+    } as never;
+    expect(await askAi(env, { subject: 'Wifi down', description: 'Cannot connect at all', categories })).toMatchObject({ category_id: 1 });
+  });
+});
+
 describe('POST /tickets/suggest API contract', () => {
   const app = new Hono<AppEnv>();
   app.route('/', triageRoutes);
