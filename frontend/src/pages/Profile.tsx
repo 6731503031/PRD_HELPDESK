@@ -1,11 +1,14 @@
 /**
  * "ข้อมูลของฉัน" — a guest requester changes the display name / contact email.
  * Self-declared, never verified (Identity stub, PRD §20).
+ * PDPA: shows which privacy notice the person accepted and lets them withdraw (as easy as giving it, s.19).
  */
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
 import { isGuest, useIdentity } from '../auth/identity';
 import { ErrorNotice, Field, Notice, Panel } from '../components/ui';
+import { formatDateTime } from '../lib/format';
+import { PRIVACY_CONTACT } from '../lib/privacy';
 
 export function Profile() {
   const { user, updateProfile } = useIdentity();
@@ -61,6 +64,59 @@ export function Profile() {
           </form>
         )}
       </Panel>
+      <PrivacyConsentPanel />
     </div>
+  );
+}
+
+function PrivacyConsentPanel() {
+  const { consent, withdrawConsent } = useIdentity();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  const withdraw = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await withdrawConsent(); // signs out on success
+    } catch (e) {
+      setError(e);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Panel title="Privacy and consent (PDPA)">
+      <div className="form form--narrow">
+        {consent?.accepted && (
+          <p>
+            You accepted privacy notice version <strong>{consent.notice_version}</strong> on {formatDateTime(consent.accepted_at)}.{' '}
+            <a href="#/privacy">Read the notice</a>
+          </p>
+        )}
+        <p className="muted small">
+          You can see, correct or delete your data, or ask us to stop using it, by writing to <strong>{PRIVACY_CONTACT}</strong>. We reply within 30 days.
+        </p>
+        {error ? <ErrorNotice error={error} /> : null}
+        {!confirming ? (
+          <div className="form-actions">
+            <button className="btn btn--secondary" onClick={() => setConfirming(true)}>Withdraw consent</button>
+          </div>
+        ) : (
+          <div className="confirm" role="group" aria-labelledby="withdraw-title">
+            <p id="withdraw-title"><strong>Withdraw your consent?</strong></p>
+            <p className="small">
+              You will be signed out and cannot report issues until you accept the notice again. Your earlier tickets are kept;
+              to have them deleted, write to {PRIVACY_CONTACT}.
+            </p>
+            <div className="form-actions">
+              <button className="btn btn--danger" onClick={() => void withdraw()} disabled={busy}>{busy ? 'Withdrawing…' : 'Withdraw and sign out'}</button>
+              <button className="btn btn--plain" onClick={() => setConfirming(false)} disabled={busy}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Panel>
   );
 }

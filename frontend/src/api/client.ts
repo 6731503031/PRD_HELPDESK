@@ -2,7 +2,7 @@
  * The ONLY place the UI talks to the backend.
  * Adds the Identity-stub headers and turns error responses into typed errors.
  */
-import type { Category, Comment, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User, WellbeingSuggestion } from './types';
+import type { Category, Comment, ConsentStatus, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User, WellbeingSuggestion } from './types';
 
 const BASE = '/api/v1';
 
@@ -60,9 +60,16 @@ const patch = (body: unknown) => ({ method: 'PATCH', body: JSON.stringify(body) 
 export const api = {
   // sign-in (Identity stub): a guest gets an id from a self-declared name; nothing is verified
   me: () => request<{ data: User }>('/me').then((r) => r.data),
-  createGuest: (name: string, email: string) => request<{ data: User }>('/auth/guest', post({ name, email })).then((r) => r.data),
+  /** A profile is created only together with the person's PDPA consent (the notice version they read). */
+  createGuest: (name: string, email: string, privacyNoticeVersion: string) =>
+    request<{ data: User }>('/auth/guest', post({ name, email, privacy_notice_version: privacyNoticeVersion })).then((r) => r.data),
   updateProfile: (name: string, email: string) =>
     request<{ data: User }>('/me', { method: 'PUT', body: JSON.stringify({ name, email }) }).then((r) => r.data),
+
+  // PDPA consent (privacy notice)
+  consent: () => request<{ data: ConsentStatus }>('/me/consent').then((r) => r.data),
+  acceptConsent: (version: string) => request<{ data: ConsentStatus }>('/me/consent', post({ notice_version: version })).then((r) => r.data),
+  withdrawConsent: () => request<{ data: ConsentStatus }>('/me/consent', { method: 'DELETE' }).then((r) => r.data),
 
   // reference
   config: () => request<{ data: { maintenance_portal_url: string | null } }>('/config').then((r) => r.data),

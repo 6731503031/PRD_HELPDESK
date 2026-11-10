@@ -60,16 +60,31 @@ export async function displayNames(db: D1Database, ids: Array<number | null | un
   return out;
 }
 
-export async function createGuest(db: D1Database, v: { name: string; email: string | null }): Promise<ProfileRow> {
-  const row = await db
-    .prepare(
-      `INSERT INTO user_profiles (id, full_name, email)
-       VALUES ((SELECT COALESCE(MAX(id), ${GUEST_ID_MIN - 1}) + 1 FROM user_profiles), ?, ?)
-       RETURNING id, full_name, email`,
-    )
-    .bind(v.name, v.email)
-    .first<ProfileRow>();
-  return row!;
+/**
+ * Creates the guest AND logs their PDPA consent in one batch (one transaction in D1):
+ * a profile never exists without the consent that allowed us to collect it.
+ */
+export async function createGuest(
+  db: D1Database,
+  v: { name: string; email: string | null },
+  noticeVersion: string,
+): Promise<ProfileRow> {
+  const [created] = await db.batch<ProfileRow>([
+    db
+      .prepare(
+        `INSERT INTO user_profiles (id, full_name, email)
+         VALUES ((SELECT COALESCE(MAX(id), ${GUEST_ID_MIN - 1}) + 1 FROM user_profiles), ?, ?)
+         RETURNING id, full_name, email`,
+      )
+      .bind(v.name, v.email),
+    db
+      .prepare(
+        `INSERT INTO privacy_consents (user_id, notice_version, action)
+         VALUES ((SELECT MAX(id) FROM user_profiles), ?, 'accepted')`,
+      )
+      .bind(noticeVersion),
+  ]);
+  return created.results[0];
 }
 
 export async function updateGuest(db: D1Database, id: number, v: { name: string; email: string | null }): Promise<ProfileRow | null> {

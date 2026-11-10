@@ -15,15 +15,16 @@
     "db:local:fresh": "wrangler d1 execute helpdesk-db --local --file=./database/schema.sql",
     "db:local:migrate": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0002_final_features.sql",
     "db:remote:migrate": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0002_final_features.sql",
-    "db:local:update": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0003_drop_assigned_status.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0004_guest_profiles.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0005_ticket_location.sql",
-    "db:remote:update": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0003_drop_assigned_status.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0004_guest_profiles.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0005_ticket_location.sql",
+    "db:local:update": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0003_drop_assigned_status.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0004_guest_profiles.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0005_ticket_location.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0006_privacy_consents.sql",
+    "db:remote:update": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0003_drop_assigned_status.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0004_guest_profiles.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0005_ticket_location.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0006_privacy_consents.sql",
     "db:local:0006": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0006_wellbeing_v2.sql",
     "db:remote:0006": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0006_wellbeing_v2.sql",
     "mock:maintenance": "node scripts/send-mock-maintenance-event.mjs",
     "wt:new": "bash scripts/worktree.sh new",
     "wt:open": "bash scripts/worktree.sh open",
     "wt:list": "bash scripts/worktree.sh list",
-    "wt:rm": "bash scripts/worktree.sh rm"
+    "wt:rm": "bash scripts/worktree.sh rm",
+    "db:remote:privacy": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0006_privacy_consents.sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240605.0",

@@ -7,7 +7,9 @@
  *   #/my/:id   Ticket status     #/admin        Manage categories
  *   #/chat     Messages          #/chat         Messages
  *   #/profile  My details        #/staff        Admin sign-in (separate link, not shown to requesters)
+ *   #/privacy  Privacy notice (both roles)
  *
+ * PDPA: a requester who has not accepted the current privacy notice sees ConsentScreen instead of any page.
  * Two roles only. The admin does not file tickets, so never sees the requester screens.
  * The left sidebar folds into an icon rail (state remembered in this browser).
  */
@@ -26,11 +28,13 @@ import { CreateTicket } from './pages/CreateTicket';
 import { Login } from './pages/Login';
 import { usePersisted } from './lib/usePersisted';
 import { MyTickets } from './pages/MyTickets';
+import { ConsentScreen, PrivacyPage } from './pages/Privacy';
 
 export function App() {
-  const { user, ready, signOut, error } = useIdentity();
+  const { user, ready, signOut, error, consent } = useIdentity();
   const path = usePath();
   const staff = isStaff(user);
+  const needsConsent = !!user && !staff && !consent?.accepted;
   const [navOpen, setNavOpen] = usePersisted('helpdesk.sidebar', true);
 
   // Each role lands on its own screens only.
@@ -66,6 +70,8 @@ export function App() {
   else if (path === '/chat') page = <Messages />;
   else if ((params = match('/chat/:id', path))) page = <Messages selectedId={Number(params.id)} />;
   else if (path === '/profile') page = <Profile />;
+  else if (path === '/privacy') page = <PrivacyPage />;
+  if (needsConsent) page = <ConsentScreen />;
 
   const skip = (
     <a className="skip-link" href="#main" onClick={(e) => { e.preventDefault(); document.getElementById('main')?.focus(); }}>
@@ -134,6 +140,7 @@ export function App() {
                 <Icon name="logout" />
                 <span className="side-label">Sign out</span>
               </button>
+              <a className="sidebar__credit sidebar__privacy" href="#/privacy">Privacy notice (PDPA)</a>
               <p className="sidebar__credit">Student Support Pod, Team 14</p>
             </div>
           )}
@@ -149,7 +156,7 @@ export function App() {
           ) : user ? (
             // Pages mount only once the signed-in user is known, so their first request
             // always carries the identity headers (no 401 race on hard reload).
-            <div key={path} className="route">{page}</div>
+            <div key={needsConsent ? 'consent' : path} className="route">{page}</div>
           ) : (
             <div className="page"><Loading variant="dashboard" /></div>
           )}
