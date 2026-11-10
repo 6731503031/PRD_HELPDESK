@@ -99,6 +99,10 @@ check "webhook: unknown status → 400"    400 "$(hook "$(evt "e-$RUN-4" "$WO" t
 check "webhook: not JSON → 400"          400 "$(hook 'not json')"
 check "webhook: cancelled → 200"         200 "$(hook "$(evt "e-$RUN-5" "$WO" cancelled)")"
 check "link: new one after cancel → 200" 200 "$(code -X POST "$BASE/tickets/$ID2/link-maintenance" "${ADMIN[@]}" "${J[@]}" -d "{\"work_order_id\":\"WO-MOCK-$RUN-2\"}")"
+echo "--- Team 10: ask for the latest status (sync, when a webhook was missed) ---"
+check "sync: requester → 403"            403 "$(code -X POST "$BASE/tickets/$ID2/sync-maintenance" "${ALICE[@]}" "${J[@]}" -d '{}')"
+check "sync: ticket not linked → 409"    409 "$(code -X POST "$BASE/tickets/$ID/sync-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
+check "sync: linked work order → 200"    200 "$(code -X POST "$BASE/tickets/$ID2/sync-maintenance" "${ADMIN[@]}" "${J[@]}" -d '{}')"
 echo "--- Team 10: send the repair from Helpdesk (main way; local run answers a WO-MOCK-<uuid>) ---"
 code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{"subject":"Light in B-301 keeps flickering","description":"The ceiling light flickers all day","location":"Building B, Room B-301","category_id":5,"urgency":"medium"}' >/dev/null
 ID3=$(python3 -c 'import json;print(json.load(open("/tmp/smoke_body"))["data"]["id"])')

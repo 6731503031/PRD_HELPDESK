@@ -25,6 +25,7 @@ import { triageRoutes } from './ai/routes';
 import { adminRoutes } from './modules/admin/routes';
 import { wellbeingRoutes } from './modules/wellbeing/routes';
 import { contactsRoutes } from './modules/contacts/routes';
+import { syncOpenWorkOrders } from './modules/maintenance/sync';
 import { runEscalation } from './modules/events/escalation';
 
 // ---------- API ----------
@@ -82,5 +83,12 @@ export default {
   // PRD §14 escalation — Cron Trigger in wrangler.toml (P2)
   scheduled: async (_event, env, ctx) => {
     ctx.waitUntil(runEscalation(env).then((r) => console.log(JSON.stringify({ msg: 'escalation run', ...r }))));
+    // Team 10 webhooks can be missed: also ask Team 10 for the status of open work orders (P3).
+    // A separate task, so a failure here never stops the escalation check above.
+    ctx.waitUntil(
+      syncOpenWorkOrders(env)
+        .then((r) => console.log(JSON.stringify({ msg: 'maintenance sync run', ...r })))
+        .catch((err) => console.error(JSON.stringify({ level: 'error', msg: 'maintenance sync run failed', err: String(err) }))),
+    );
   },
 } satisfies ExportedHandler<Bindings>;

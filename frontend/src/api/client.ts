@@ -104,6 +104,12 @@ export const api = {
   /** Backup way: link a work order id the admin already has. */
   linkWorkOrder: (id: number, workOrderId: string) =>
     request<{ maintenance_work_order_id: string }>(`/tickets/${id}/link-maintenance`, post({ work_order_id: workOrderId })),
+  /** Ask Team 10 for the latest status now (when its webhook was missed). */
+  syncWorkOrder: (id: number) =>
+    request<{ data: { changed: boolean; team10_status: string; known_status: boolean; maintenance_status: string | null } }>(
+      `/tickets/${id}/sync-maintenance`,
+      post({}),
+    ).then((r) => r.data),
 
   // wellbeing (Team 16, contract 2.0): read-only, nothing about the ticket is sent to Team 16
   wellbeingSuggestion: (id: number) => request<WellbeingSuggestion>(`/tickets/${id}/wellbeing-suggestion`),

@@ -5,6 +5,8 @@
  *   POST /tickets/:id/send-maintenance   { title?, description?, location, category }  admin only   (F13, main way)
  *   POST /tickets/:id/link-maintenance   { work_order_id }   admin only         (F13, backup way)
  *   POST /webhooks/maintenance           Team 10 -> us, HMAC-signed             (F14, F29)
+ *   POST /tickets/:id/sync-maintenance   admin only: ask Team 10 for the latest status (when a webhook was missed)
+ *   (cron, every 15 min)                 same sync for open work orders — see sync.ts and src/index.ts
  *
  * Two numbers, one pair: our ticket number (TKT-…) goes to Team 10, their work order id comes back and is
  * stored on the ticket. Main way: Helpdesk creates the work order for the admin (send-maintenance), so the
@@ -17,11 +19,13 @@ import { requireRole } from '../../core/auth';
 import { ApiError, badRequest, conflict, notFound, parseId, readJson } from '../../core/http';
 import { publishEvent } from '../events/publish';
 import { getTicket, recordStatus, updateTicket } from '../tickets/repo';
+import { applyWorkOrderStatus } from './apply';
 import { CREATE_NOT_SUPPORTED, createWorkOrder, fetchWorkOrder } from './client';
 import { parseWebhookEvent, validateRepairRequest, validateWorkOrderId } from './envelope';
-import { mapWorkOrderStatus, nextTicketStatus } from './mapping';
+import { mapWorkOrderStatus } from './mapping';
 import { verifyWebhook } from './signature';
-import { MESSAGES, postSystemMessage, repairMessage } from '../comments/templates';
+import { logSync, syncWorkOrder } from './sync';
+import { MESSAGES, postSystemMessage } from '../comments/templates';
 
 export const maintenanceRoutes = new Hono<AppEnv>();
 
@@ -213,39 +217,35 @@ maintenanceRoutes.post('/webhooks/maintenance', async (c) => {
     return c.json({ received: true, linked: false }, 202); // valid event, no ticket linked to this work order
   }
 
-  const next = nextTicketStatus(ticket.status, effect);
-  const sets = ['maintenance_status = ?', "maintenance_status_at = datetime('now')", "updated_at = datetime('now')"];
-  const values: unknown[] = [status];
-  if (next) {
-    sets.push('status = ?');
-    values.push(next);
+  const result = await applyWorkOrderStatus(c.env, ticket, status, effect, { id: eventId, type });
+  if (result.outcome === 'duplicate') {
+    trace(200, 'duplicate event id (race), ignored', { eventId, workOrderId, status });
+    return c.json({ received: true, duplicate: true }); // the same event raced us
   }
-
-  // One atomic batch: the event id is stored only if the ticket update and its history row also succeed.
-  try {
-    await c.env.DB.batch([
-      c.env.DB.prepare(`INSERT INTO processed_events (event_id, source, type) VALUES (?, 'maintenance', ?)`).bind(eventId, type),
-      c.env.DB.prepare(`UPDATE tickets SET ${sets.join(', ')} WHERE id = ?`).bind(...values, ticket.id),
-      c.env.DB.prepare(
-        `INSERT INTO ticket_status_history (ticket_id, from_status, to_status, changed_by, source, note) VALUES (?, ?, ?, NULL, 'maintenance', ?)`,
-      ).bind(ticket.id, ticket.status, next ?? ticket.status, effect.label),
-    ]);
-  } catch (err) {
-    if (String(err).includes('UNIQUE')) {
-      trace(200, 'duplicate event id (race), ignored', { eventId, workOrderId, status });
-      return c.json({ received: true, duplicate: true }); // the same event raced us
-    }
-    throw err;
-  }
-  trace(200, 'applied', { eventId, workOrderId, status, ticket: ticket.ticket_number, ticketStatus: next ?? ticket.status });
-
-  // Tell the requester in the chat — real progress only, once per stage, never on a ticket already finished.
-  const chat = repairMessage(ticket.maintenance_status, status);
-  if (chat && ticket.status !== 'resolved' && ticket.status !== 'closed') await postSystemMessage(c.env.DB, ticket.id, chat);
-
-  if (next) {
-    const updated = await getTicket(c.env.DB, ticket.id);
-    if (updated) await publishEvent(c.env, 'ticket.status_changed', updated, { from: ticket.status, source: 'maintenance' });
-  }
+  trace(200, 'applied', { eventId, workOrderId, status, ticket: ticket.ticket_number, ticketStatus: result.ticketStatus });
   return c.json({ received: true });
+});
+
+// ---------- Sync: ask Team 10 for the latest status (the admin's "Check repair status" button) ----------
+// Works even when Team 10's webhook never arrives. Only forward progress is applied; nothing changes otherwise.
+maintenanceRoutes.post('/tickets/:id/sync-maintenance', requireRole('admin'), async (c) => {
+  const ticket = await getTicket(c.env.DB, parseId(c.req.param('id')));
+  if (!ticket) throw notFound('Ticket not found');
+  const workOrderId = ticket.maintenance_work_order_id;
+  if (!workOrderId) throw conflict('This ticket is not linked to a work order');
+
+  const outcome = await syncWorkOrder(c.env, { ...ticket, maintenance_work_order_id: workOrderId }, c.get('correlationId'));
+  logSync('admin', ticket.ticket_number, workOrderId, outcome);
+  if (outcome.kind === 'unavailable') throw new ApiError(503, 'ServiceUnavailable', TEAM10_DOWN, { reason: outcome.reason });
+  if (outcome.kind === 'not_found') throw notFound(`Team 10 does not know work order ${workOrderId}`);
+
+  const team10 = outcome.kind === 'changed' ? outcome.to : outcome.team10;
+  return c.json({
+    data: {
+      changed: outcome.kind === 'changed',
+      team10_status: team10,
+      known_status: outcome.kind !== 'unknown_status',
+      maintenance_status: outcome.kind === 'changed' ? outcome.to : ticket.maintenance_status,
+    },
+  });
 });

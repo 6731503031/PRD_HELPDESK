@@ -550,6 +550,25 @@ function AdminActions({ ticket, onChanged }: { ticket: Detail; onChanged: () => 
                 </>
               )}
               <span className="muted">Latest status: {maintenanceLabel(ticket.maintenance_status)}</span>
+              <br />
+              <button
+                type="button"
+                className="btn btn--plain btn--small"
+                disabled={!!busy}
+                onClick={() =>
+                  run(
+                    'sync',
+                    async () => {
+                      const r = await api.syncWorkOrder(ticket.id);
+                      if (!r.known_status) throw new Error(`Team 10 reports "${r.team10_status}", which Helpdesk does not know yet.`);
+                      return r;
+                    },
+                    'Checked with Team 10. The repair status is up to date.',
+                  )
+                }
+              >
+                {busy === 'sync' ? 'Checking with Team 10…' : 'Check repair status'}
+              </button>
             </p>
           ) : s2 === 'todo' ? (
             <p className="step-desc">
