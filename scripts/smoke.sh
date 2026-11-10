@@ -44,12 +44,21 @@ check "chat: admin replies"        201 "$(code -X POST "$BASE/tickets/$ID/commen
 check "chat: empty message → 400"  400 "$(code -X POST "$BASE/tickets/$ID/comments" "${ALICE[@]}" "${J[@]}" -d '{"content":"   "}')"
 check "chat: other requester"      403 "$(code "$BASE/tickets/$ID/comments" "${BOB[@]}")"
 check "chat: both sides see 2"     2 "$(curl -s "$BASE/tickets/$ID/comments" "${ALICE[@]}" | python3 -c 'import sys,json;print(sum(1 for m in json.load(sys.stdin)["data"] if m["author_role"]!="system"))')"
-echo "--- guest sign-in (Identity stub) ---"
-GUEST=$(curl -s -X POST "$BASE/auth/guest" "${J[@]}" -d '{"name":"Smoke Guest"}')
+echo "--- guest sign-in (Identity stub) + PDPA consent ---"
+PV="1.0" # PRIVACY_NOTICE_VERSION (backend/src/core/privacy.ts)
+check "guest: no consent → 422"    422 "$(code -X POST "$BASE/auth/guest" "${J[@]}" -d '{"name":"No Consent"}')"
+check "guest: old notice → 422"    422 "$(code -X POST "$BASE/auth/guest" "${J[@]}" -d '{"name":"Old Notice","privacy_notice_version":"0.1"}')"
+GUEST=$(curl -s -X POST "$BASE/auth/guest" "${J[@]}" -d "{\"name\":\"Smoke Guest\",\"privacy_notice_version\":\"$PV\"}")
 GID=$(echo "$GUEST" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["id"])')
 GH=(-H "x-user-id: $GID" -H "x-user-role: customer")
-check "guest: bad name → 422"      422 "$(code -X POST "$BASE/auth/guest" "${J[@]}" -d '{"name":"x"}')"
+check "guest: bad name → 422"      422 "$(code -X POST "$BASE/auth/guest" "${J[@]}" -d "{\"name\":\"x\",\"privacy_notice_version\":\"$PV\"}")"
 check "guest: /me"                 200 "$(code "$BASE/me" "${GH[@]}")"
+check "consent: no auth → 401"     401 "$(code "$BASE/me/consent")"
+check "consent: given at sign-up"  True "$(curl -s "$BASE/me/consent" "${GH[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["accepted"])')"
+check "consent: withdraw → 200"    200 "$(code -X DELETE "$BASE/me/consent" "${GH[@]}")"
+check "consent: now withdrawn"     False "$(curl -s "$BASE/me/consent" "${GH[@]}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["data"]["accepted"])')"
+check "consent: accept again → 201" 201 "$(code -X POST "$BASE/me/consent" "${GH[@]}" "${J[@]}" -d "{\"notice_version\":\"$PV\"}")"
+check "consent: accept twice → 200" 200 "$(code -X POST "$BASE/me/consent" "${GH[@]}" "${J[@]}" -d "{\"notice_version\":\"$PV\"}")"
 check "guest: not admin"           403 "$(code "$BASE/admin/stats" "${GH[@]}")"
 check "guest: cannot see Alice's ticket" 403 "$(code "$BASE/tickets/$ID" "${GH[@]}")"
 check "guest: forged admin role → 403" 403 "$(code "$BASE/tickets" -H "x-user-id: $GID" -H "x-user-role: admin")"
