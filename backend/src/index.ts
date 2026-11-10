@@ -43,6 +43,7 @@ api.get('/', (c) =>
 api.use('/tickets', requireAuth);
 api.use('/tickets/*', requireAuth);
 api.use('/me', requireAuth); // /auth/guest is public: it is how a guest gets an id
+api.use('/me/*', requireAuth); // /me/consent (PDPA)
 api.use('/admin/*', requireAuth, requireRole('admin'));
 
 api.route('/', referenceRoutes);   // P1

@@ -114,6 +114,19 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- ---------------------------------------------------------------------
+-- PDPA consent log (migration 0006): one row per accept / withdraw, never updated.
+-- Newest row of a user = their current answer. Notice text: frontend/src/lib/privacy.ts
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS privacy_consents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  notice_version TEXT NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('accepted', 'withdrawn')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_privacy_consents_user ON privacy_consents(user_id, id);
+
+-- ---------------------------------------------------------------------
 -- Inbound webhook dedupe (PRD §18: duplicate event handling)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS processed_events (
