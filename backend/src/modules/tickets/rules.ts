@@ -10,7 +10,6 @@ import type { Role } from '../../core/identity';
 // 'assigned' is gone with the agent role; the DB CHECK still accepts it for old rows only.
 export const STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
-export const WELLBEING_SLUGS = ['counselling', 'health-clinic', 'physiotherapy', 'wellbeing-advising'] as const;
 
 export type TicketStatus = (typeof STATUSES)[number];
 export type Priority = (typeof PRIORITIES)[number];
@@ -28,7 +27,8 @@ export type Ticket = {
   customer_id: number;
   assigned_agent_id: number | null; // legacy column (Assignment 2), no longer written
   resolution_note: string | null;
-  wellbeing_service_slug: string | null;
+  /** Team 16 service id we suggested (contract 2.0, e.g. srv_general_counselling). Never means "Wellbeing client". */
+  wellbeing_service_id: string | null;
   maintenance_work_order_id: string | null;
   maintenance_status: string | null;
   maintenance_status_at: string | null;
@@ -118,7 +118,7 @@ export function canViewTicket(user: AuthUser, ticket: Pick<Ticket, 'customer_id'
 export function editableFields(role: Role): string[] {
   const requester = ['title', 'description', 'location'];
   if (!isStaff(role)) return requester;
-  return [...requester, 'priority', 'status', 'category_id', 'resolution_note', 'wellbeing_service_slug'];
+  return [...requester, 'priority', 'status', 'category_id', 'resolution_note', 'wellbeing_service_id'];
 }
 
 /** FR-13: only staff can resolve, and not twice. */

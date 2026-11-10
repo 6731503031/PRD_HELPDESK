@@ -112,6 +112,12 @@ check "chat: resolved with the summary"      "Ticket resolved. Summary: Light re
 hook "$(evt "e-$RUN-8" "$WO3" closed)" >/dev/null
 check "chat: nothing after the ticket is resolved" 5 "$(sysmsgs)"
 check "AI suggest: empty body → 422" 422 "$(code -X POST "$BASE/tickets/suggest" "${ALICE[@]}" "${J[@]}" -d '{}')"
+# Wellbeing (Team 16, contract 2.0): our proxy answers 200 even when Team 16 is down (available:false), never blocks
+check "wellbeing: catalogue proxy → 200"   200 "$(code "$BASE/wellbeing/services")"
+check "wellbeing: no 1.2 fields"           ok "$(python3 -c 'import json;d=json.load(open("/tmp/smoke_body"));s=d["services"];print("ok" if isinstance(s,list) and all("slug" not in x and "whatFor" not in x for x in s) and all(x["id"].startswith("srv_") for x in s) else "bad")')"
+check "wellbeing: suggestion → 200"        200 "$(code "$BASE/tickets/$ID/wellbeing-suggestion" "${ALICE[@]}")"
+check "wellbeing: other requester → 403"   403 "$(code "$BASE/tickets/$ID/wellbeing-suggestion" "${BOB[@]}")"
+check "wellbeing: bad service id → 400"    400 "$(code -X PATCH "$BASE/tickets/$ID" "${ADMIN[@]}" "${J[@]}" -d '{"wellbeing_service_id":"counselling"}')"
 check "admin stats (P4)"           501 "$(code "$BASE/admin/stats" "${ADMIN[@]}")"
 echo "=== $pass passed, $fail failed ==="
 [ "$fail" -eq 0 ]

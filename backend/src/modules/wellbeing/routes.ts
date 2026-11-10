@@ -1,78 +1,45 @@
 /**
- * Wellbeing (Team 16) integration — A5, already delivered. Moved here unchanged
- * except: keyword matching now uses whole words (fixes "will" matching "ill").
+ * Wellbeing (Team 16) integration — contract 2.0 (AI-MIGRATION-BRIEF, 2026-11-09).
  * Owner: P3 (Integrations)
  *
- *   GET /wellbeing/services                     public catalogue proxy (Team 16 has no CORS)
- *   GET /tickets/:id/wellbeing-suggestion       keyword match, read-only
+ *   GET /wellbeing/services                public catalogue proxy (Team 16 has no CORS)
+ *   GET /tickets/:id/wellbeing-suggestion  which service to suggest for this ticket, read-only
+ *
+ * Helpdesk only reads the public catalogue: no ticket text, no personal data goes to Team 16, nothing comes back.
+ * A stored wellbeing_service_id means "we suggested this", never "this student is a Wellbeing client".
  */
 import { Hono, type Context } from 'hono';
 import type { AppEnv } from '../../core/env';
 import { forbidden, notFound, parseId } from '../../core/http';
 import { getTicket } from '../tickets/repo';
 import { canViewTicket } from '../tickets/rules';
+import { findService, listWellbeingServices, wellbeingCorrelationId, type WellbeingService } from './client';
+import { EMERGENCY_NUMBERS, WELLBEING_EMERGENCY_URL, WELLBEING_SITE_URL, isWellbeingTicket, routeWellbeing } from './routing';
 
 export const wellbeingRoutes = new Hono<AppEnv>();
 
-type WellbeingService = { id: string; slug: string; name: string; whatFor: string; firstSession: string; whoWillKnow: string };
-
-const CACHE_TTL_SECONDS = 600;
-const TIMEOUT_MS = 3000; // Team 16 contract §9
-
-async function getCatalogue(c: Context<AppEnv>) {
-  const cache = caches.default;
-  const cacheKey = new Request('https://internal-cache.local/wellbeing-services');
-  const cached = await cache.match(cacheKey);
-  if (cached) return { services: (await cached.json<{ services: WellbeingService[] }>()).services, degraded: false };
-
-  const correlationId = `team14-a5-${crypto.randomUUID()}`;
-  const fetchOnce = async () => {
-    const res = await fetch(`${c.env.WELLBEING_API_URL}/services`, {
-      headers: { 'X-Correlation-Id': correlationId },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!res.ok) throw new Error(`upstream ${res.status}`);
-    return res;
-  };
-
-  let upstream: Response;
-  try {
-    upstream = await fetchOnce();
-  } catch {
-    try {
-      await new Promise((r) => setTimeout(r, 300)); // one retry — GET is safe to retry
-      upstream = await fetchOnce();
-    } catch {
-      return { services: [] as WellbeingService[], degraded: true }; // never block Helpdesk
-    }
-  }
-  const body = await upstream.json<{ services: WellbeingService[] }>();
-  c.executionCtx.waitUntil(
-    cache.put(cacheKey, new Response(JSON.stringify({ services: body.services }), {
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}` },
-    })),
-  );
-  return { services: body.services, degraded: false };
+/** Our request id, in the character set Team 16 accepts (8–128 of A–Z a–z 0–9 _ . : -). */
+function correlationFor(c: Context<AppEnv>): string {
+  const ours = String(c.get('correlationId') ?? '').replace(/[^A-Za-z0-9_.:-]/g, '-');
+  if (!ours) return wellbeingCorrelationId();
+  return (ours.startsWith('team14-') ? ours : `team14-${ours}`).slice(0, 128);
 }
 
-const KEYWORDS: Record<string, string[]> = {
-  counselling: ['stress', 'stressed', 'anxious', 'anxiety', 'depressed', 'depression', 'overwhelmed', 'grief', 'lonely', 'mental health', 'counselling', 'counseling', 'sad', 'panic'],
-  'health-clinic': ['sick', 'ill', 'flu', 'fever', 'medical certificate', 'vaccine', 'vaccination', 'injury', 'injured', 'hurt', 'unwell', 'nurse', 'clinic'],
-  physiotherapy: ['back pain', 'neck pain', 'sports injury', 'sprain', 'physio', 'physiotherapy', 'muscle', 'posture'],
-  'wellbeing-advising': ['financial hardship', 'sleep', 'homesick', 'settling in', 'work-life', 'study-life'],
-};
+/** Same field names as the rest of our API (snake_case). */
+const toJson = (s: WellbeingService) => ({ id: s.id, name: s.name, description: s.description, duration_minutes: s.durationMinutes });
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+wellbeingRoutes.get('/wellbeing/services', async (c) => {
+  const list = await listWellbeingServices(c.env.WELLBEING_API_URL, correlationFor(c));
+  return c.json({ available: list.available, stale: list.stale, services: list.services.map(toJson) });
+});
 
-/** Whole-word, case-insensitive match. Exported for tests. */
-export function matchWellbeingSlug(text: string): string | null {
-  for (const [slug, words] of Object.entries(KEYWORDS)) {
-    if (words.some((w) => new RegExp(`\\b${escapeRe(w)}\\b`, 'i').test(text))) return slug;
-  }
-  return null;
-}
-
-wellbeingRoutes.get('/wellbeing/services', async (c) => c.json(await getCatalogue(c)));
+/** Always sent, so the UI can show the emergency numbers and the booking link even when Team 16 is down. */
+const base = (ticketId: number) => ({
+  ticket_id: ticketId,
+  emergency_numbers: EMERGENCY_NUMBERS,
+  emergency_url: WELLBEING_EMERGENCY_URL,
+  booking_url: WELLBEING_SITE_URL,
+});
 
 wellbeingRoutes.get('/tickets/:id/wellbeing-suggestion', async (c) => {
   const id = parseId(c.req.param('id'));
@@ -80,7 +47,23 @@ wellbeingRoutes.get('/tickets/:id/wellbeing-suggestion', async (c) => {
   if (!ticket) throw notFound('Ticket not found');
   if (!canViewTicket(c.get('user'), ticket)) throw forbidden('You can only view your own tickets');
 
-  const { services, degraded } = await getCatalogue(c);
-  const slug = degraded ? null : matchWellbeingSlug(`${ticket.title} ${ticket.description}`);
-  return c.json({ ticket_id: id, suggested_service: services.find((s) => s.slug === slug) ?? null, degraded });
+  // Brief §8 rule 1: danger first, on EVERY ticket — emergency numbers, and no appointment is suggested.
+  const route = routeWellbeing(`${ticket.title}\n${ticket.description}`);
+  // A service is suggested only on a Wellbeing ticket (a projector "in the lecture hall" is a repair, not exam stress).
+  const wellbeingTicket = isWellbeingTicket(ticket);
+  if (!route.danger && !wellbeingTicket) {
+    return c.json({ ...base(id), available: true, danger: false, wellbeing_ticket: false, suggested_service: null });
+  }
+  const list = await listWellbeingServices(c.env.WELLBEING_API_URL, correlationFor(c));
+  // A service the admin chose wins over the keyword guess; either must still be in the live list (else hidden).
+  const chosen = route.danger ? null : findService(list, ticket.wellbeing_service_id) ?? findService(list, route.serviceId);
+
+  return c.json({
+    ...base(id),
+    available: list.available,
+    danger: route.danger,
+    wellbeing_ticket: wellbeingTicket,
+    suggested_service: chosen ? toJson(chosen) : null,
+  });
 });
+

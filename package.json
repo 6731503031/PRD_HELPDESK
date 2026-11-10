@@ -17,6 +17,8 @@
     "db:remote:migrate": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0002_final_features.sql",
     "db:local:update": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0003_drop_assigned_status.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0004_guest_profiles.sql && wrangler d1 execute helpdesk-db --local --file=./database/migrations/0005_ticket_location.sql",
     "db:remote:update": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0003_drop_assigned_status.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0004_guest_profiles.sql && wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0005_ticket_location.sql",
+    "db:local:0006": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0006_wellbeing_v2.sql",
+    "db:remote:0006": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0006_wellbeing_v2.sql",
     "mock:maintenance": "node scripts/send-mock-maintenance-event.mjs",
     "wt:new": "bash scripts/worktree.sh new",
     "wt:open": "bash scripts/worktree.sh open",

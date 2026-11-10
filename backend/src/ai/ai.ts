@@ -24,6 +24,7 @@ export async function askAi(env: Bindings, input: TriageInput): Promise<unknown 
         `Allowed categories: ${JSON.stringify(categories)}`,
         'Allowed priorities: ["low", "medium", "high", "urgent"]',
         'Allowed routes: ["helpdesk", "maintenance", "it_support", "wellbeing"]',
+        'Use route "wellbeing" only for stress, exams, low mood, anxiety, loneliness, relationships, family, grief or sleep. Illness, injury and physical health are never "wellbeing".',
         'Return exactly one JSON object with category_id (number), priority, route, and a short reason. Do not use markdown.',
       ].join('\n'),
     },
