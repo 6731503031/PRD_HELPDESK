@@ -12,6 +12,7 @@ import { PRIORITY_LABEL, ROUTE_LABEL, formatDateTime, isRepairDone, maintenanceL
 import { useAsync } from '../lib/useAsync';
 import { REPAIR_CATEGORIES, REPAIR_CATEGORY_LABEL, guessRepairCategory, isRepairCategoryName, type RepairCategory } from '../lib/repair';
 import { Avatar, Icon } from './Icon';
+import { WellbeingCard } from './WellbeingCard';
 import { ErrorNotice, Field, Loading, Notice, Panel, PriorityText, StatusBadge, StatusTrack } from './ui';
 
 export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => void }) {
@@ -59,6 +60,8 @@ export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => 
                 <p className="description mt-2">{t.description}</p>
               </>
             )}
+
+            <WellbeingCard ticket={t} staff={staff} />
 
             {staff && !closed && <SystemSuggestion ticket={t} />}
 

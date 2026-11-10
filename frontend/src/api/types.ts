@@ -36,6 +36,22 @@ export type Ticket = {
   resolved_at: string | null;
 };
 
+/** GET /tickets/:id/wellbeing-suggestion — Team 16 contract 2.0. Nothing about the ticket is sent to Team 16. */
+export type WellbeingService = { id: string; name: string; description: string; duration_minutes: number };
+export type WellbeingSuggestion = {
+  ticket_id: number;
+  /** false: Team 16 is unreachable — hide the list, keep the ticket working */
+  available: boolean;
+  /** danger words in the ticket: show the emergency numbers, no appointment */
+  danger: boolean;
+  /** Wellbeing category, AI route 'wellbeing' or a service chosen: only then is a service suggested */
+  wellbeing_ticket: boolean;
+  emergency_numbers: { number: string; label: string }[];
+  emergency_url: string;
+  booking_url: string;
+  suggested_service: WellbeingService | null;
+};
+
 export type HistoryEntry = {
   from_status: string | null;
   to_status: string;

@@ -2,7 +2,7 @@
  * The ONLY place the UI talks to the backend.
  * Adds the Identity-stub headers and turns error responses into typed errors.
  */
-import type { Category, Comment, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User } from './types';
+import type { Category, Comment, Priority, Stats, Suggestion, Ticket, TicketDetail, TicketStatus, User, WellbeingSuggestion } from './types';
 
 const BASE = '/api/v1';
 
@@ -97,6 +97,9 @@ export const api = {
   /** Backup way: link a work order id the admin already has. */
   linkWorkOrder: (id: number, workOrderId: string) =>
     request<{ maintenance_work_order_id: string }>(`/tickets/${id}/link-maintenance`, post({ work_order_id: workOrderId })),
+
+  // wellbeing (Team 16, contract 2.0): read-only, nothing about the ticket is sent to Team 16
+  wellbeingSuggestion: (id: number) => request<WellbeingSuggestion>(`/tickets/${id}/wellbeing-suggestion`),
 
   // triage + admin (P4)
   suggest: (input: { subject: string; description: string; urgency?: Priority }) =>
