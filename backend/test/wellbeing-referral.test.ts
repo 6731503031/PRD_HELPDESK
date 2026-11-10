@@ -13,6 +13,7 @@ import {
   sendReferral,
   syncSentReferrals,
 } from '../src/modules/wellbeing/referral';
+import { verifyWebhook } from '../src/modules/maintenance/signature';
 
 const env = (over: Record<string, unknown> = {}) =>
   ({ WELLBEING_API_URL: 'https://wb.test/api/v1/', WELLBEING_API_KEY: 'k16', WELLBEING_REFERRALS: 'on', ...over }) as never;
@@ -48,15 +49,29 @@ describe('what a Team 16 status does (referralEffect)', () => {
   it('declined leaves the ticket open', () => {
     expect(referralEffect('sent', 'declined', 'in_progress')).toEqual({ apply: true, next: 'declined', ticket: 'none' });
   });
-  it('cancelled after approval re-opens a resolved ticket, but never a closed one', () => {
-    expect(referralEffect('approved', 'cancelled', 'resolved')).toEqual({ apply: true, next: 'cancelled', ticket: 'reopen' });
-    expect(referralEffect('approved', 'cancelled', 'closed')).toEqual({ apply: true, next: 'cancelled', ticket: 'none' });
+  it('a decision is final: no second decision, as agreed with Team 16', () => {
+    expect(referralEffect('approved', 'declined', 'resolved')).toEqual({ apply: false, reason: 'already approved' });
+    expect(referralEffect('declined', 'approved', 'in_progress')).toEqual({ apply: false, reason: 'already declined' });
   });
-  it('ignores a withdrawn referral, a repeat, and anything out of order', () => {
+  it('ignores a withdrawn referral and a repeat', () => {
     expect(referralEffect('withdrawn', 'approved', 'in_progress').apply).toBe(false);
     expect(referralEffect('approved', 'approved', 'resolved').apply).toBe(false);
-    expect(referralEffect('declined', 'approved', 'in_progress').apply).toBe(false);
-    expect(referralEffect('approved', 'declined', 'resolved').apply).toBe(false);
+  });
+});
+
+describe('Team 16 signature test vector (their reply, section 4)', () => {
+  it('our verifier accepts their signed example', async () => {
+    const rawBody =
+      '{"eventId":"evt-3f2b8c1e-9d4a-4e6b-a1c7-5e8f0b2d4c69","type":"wellbeing.referral_status","data":{"ref":"hd-0123456789abcdef0123456789abcdef","status":"approved"}}';
+    const verdict = await verifyWebhook({
+      secret: 'test-helpdesk-webhook-secret',
+      timestamp: '1794268800',
+      signature: 'f4af2ff2614ec6be66071d34896dea4b899c2afa78257da167d7c547f0651d2c',
+      rawBody,
+      now: new Date(1794268800 * 1000),
+    });
+    expect(verdict).toEqual({ ok: true });
+    expect(parseReferralEvent(JSON.parse(rawBody)).ok).toBe(true);
   });
 });
 
@@ -70,6 +85,8 @@ describe('callback envelope (parseReferralEvent)', () => {
     expect(parseReferralEvent({ ...ok, type: 'booking.updated' }).ok).toBe(false);
     expect(parseReferralEvent({ ...ok, data: { ...ok.data, ref: 'TKT-00021' } }).ok).toBe(false);
     expect(parseReferralEvent({ ...ok, data: { ...ok.data, status: 'completed' } }).ok).toBe(false);
+    expect(parseReferralEvent({ ...ok, data: { ...ok.data, status: 'cancelled' } }).ok).toBe(false); // Team 16 has no cancel
+    expect(parseReferralEvent({ ...ok, data: { ...ok.data, status: 'received' } }).ok).toBe(false); // waiting is not a decision
     expect(parseReferralEvent([ok]).ok).toBe(false);
   });
 });

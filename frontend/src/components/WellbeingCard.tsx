@@ -102,14 +102,12 @@ const STATUS_TEXT: Record<ReferralStatus, string> = {
   sent: 'Sent to Wellbeing, waiting for them to accept.',
   approved: 'Accepted by Wellbeing. Your booking details are on the Wellbeing site.',
   declined: 'Wellbeing could not take this referral.',
-  cancelled: 'Wellbeing cancelled this referral.',
   withdrawn: 'You withdrew the referral.',
 };
 const STAFF_TEXT: Record<ReferralStatus, string> = {
   sent: 'Referral sent, waiting for Wellbeing.',
   approved: 'Wellbeing accepted the referral.',
   declined: 'Wellbeing could not take the referral.',
-  cancelled: 'Wellbeing cancelled the referral.',
   withdrawn: 'The requester withdrew the referral.',
 };
 

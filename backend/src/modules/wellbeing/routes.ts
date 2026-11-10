@@ -6,7 +6,7 @@
  *   GET /tickets/:id/wellbeing-suggestion  which service to suggest for this ticket (+ referral status), read-only
  *   POST   /tickets/:id/wellbeing-referral requester only, with consent: send a referral (random reference only)
  *   DELETE /tickets/:id/wellbeing-referral requester only: withdraw it
- *   POST /webhooks/wellbeing               Team 16 → us: referral approved / declined / cancelled (HMAC)
+ *   POST /webhooks/wellbeing               Team 16 → us: referral approved / declined (HMAC)
  *   The referral part is OFF unless WELLBEING_REFERRALS = 'on' — see referral.ts.
  *
  * No ticket text and no personal data goes to Team 16: the catalogue is public, and a referral carries only a
@@ -118,8 +118,10 @@ wellbeingRoutes.post('/tickets/:id/wellbeing-referral', async (c) => {
 
   const ref = newReferralRef();
   const consentAt = new Date().toISOString();
-  const serviceId = ticket.wellbeing_service_id ?? route.serviceId;
   const cid = correlationFor(c);
+  // Team 16 answers 400 for a service it does not have, so send only an id that is in their live list; else null.
+  const list = await listWellbeingServices(c.env.WELLBEING_API_URL, cid);
+  const serviceId = (findService(list, ticket.wellbeing_service_id) ?? findService(list, route.serviceId))?.id ?? null;
   const sent = await sendReferral(c.env, { ref, service_id: serviceId, consent_at: consentAt }, cid);
   console.log(JSON.stringify({ level: sent.kind === 'sent' ? 'info' : 'warn', msg: 'wellbeing referral send', ticketId: ticket.id, outcome: sent.kind, correlationId: cid }));
   if (sent.kind === 'rejected') throw new ApiError(502, 'BadGateway', `Wellbeing did not accept the referral (HTTP ${sent.status})`);
@@ -139,9 +141,10 @@ wellbeingRoutes.delete('/tickets/:id/wellbeing-referral', async (c) => {
 });
 
 /**
- * Team 16 → us when their staff approve, decline or cancel a referral. HMAC-signed exactly like Team 10:
+ * Team 16 → us when their staff approve or decline a referral (final; no cancel). HMAC-signed exactly like Team 10:
  *   X-Timestamp: unix seconds · X-Signature: hex(HMAC-SHA256(WELLBEING_WEBHOOK_SECRET, `${X-Timestamp}.${rawBody}`))
- *   { "eventId", "type": "wellbeing.referral_status", "data": { "ref": "hd-…", "status": "approved"|"declined"|"cancelled" } }
+ *   { "eventId", "type": "wellbeing.referral_status", "data": { "ref": "hd-…", "status": "approved"|"declined" } }
+ * They retry 408/429/5xx with the same eventId, so a retry is answered "duplicate".
  * One log line per call (ids and status words only).
  */
 wellbeingRoutes.post('/webhooks/wellbeing', async (c) => {

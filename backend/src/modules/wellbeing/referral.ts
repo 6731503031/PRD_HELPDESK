@@ -9,7 +9,8 @@
  *      or we ask GET {WELLBEING_API_URL}/referrals/{ref} (cron) if a callback was missed.
  *   4. approved → our ticket is resolved (same steps as the admin's Resolve button)
  *      declined → the ticket stays open; the requester may book on Wellbeing's site or send again
- *      cancelled after approval → the ticket is re-opened (in progress) so the admin looks again
+ *   A decision is final (Team 16 reply, 10 Nov 2026): received → approved | declined; there is no "cancelled".
+ *   While waiting, Team 16 reports "received".
  *   Every step adds a status-history row and an automatic chat line. The admin sees them too: the requester is
  *   told so before consenting.
  *
@@ -17,16 +18,15 @@
  */
 import type { Bindings } from '../../core/env';
 import { postSystemMessage } from '../comments/templates';
-import { publishEvent } from '../events/publish';
 import { getTicket, recordStatus, type TicketRow } from '../tickets/repo';
 import { resolveTicket } from '../tickets/resolve';
 import { WELLBEING_TIMEOUT_MS } from './client';
 
 // ---------- pure rules ----------
 
-export type ReferralStatus = 'sent' | 'approved' | 'declined' | 'cancelled' | 'withdrawn';
-/** The statuses Team 16 may send us. */
-export const CALLBACK_STATUSES = ['approved', 'declined', 'cancelled'] as const;
+export type ReferralStatus = 'sent' | 'approved' | 'declined' | 'withdrawn';
+/** The decisions Team 16 sends us. Anything else from GET /referrals/{ref} (e.g. "received") means still waiting. */
+export const CALLBACK_STATUSES = ['approved', 'declined'] as const;
 export type CallbackStatus = (typeof CALLBACK_STATUSES)[number];
 
 export const REF_PATTERN = /^hd-[0-9a-f]{32}$/;
@@ -48,29 +48,23 @@ export const REFERRAL_TEXT = {
     chat: 'Wellbeing has accepted your referral. This ticket is now resolved. Your booking details are on the Wellbeing site.',
   },
   declined: { history: 'Wellbeing could not take the referral', chat: 'Wellbeing could not take this referral. You can book on their site, or send it again.' },
-  cancelled: { history: 'Wellbeing cancelled the referral', chat: 'Wellbeing has cancelled this referral. The Helpdesk team will review your ticket.' },
   withdrawn: { history: 'Referral withdrawn by the requester', chat: 'You withdrew the referral. Wellbeing will no longer send updates to Helpdesk.' },
 } as const;
 
 export type ReferralEffect =
   | { apply: false; reason: string }
-  | { apply: true; next: ReferralStatus; ticket: 'resolve' | 'reopen' | 'none' };
+  | { apply: true; next: ReferralStatus; ticket: 'resolve' | 'none' };
 
 /**
- * What a Team 16 status does. Each reference lives once: sent → approved | declined | cancelled, approved → cancelled.
- * A withdrawn referral, a repeat, or anything else changes nothing.
+ * What a Team 16 decision does. Each reference is decided once: sent → approved | declined, and that is final.
+ * A withdrawn referral, a repeat, or a second decision changes nothing.
  */
 export function referralEffect(current: ReferralStatus, incoming: CallbackStatus, ticketStatus: string): ReferralEffect {
   if (current === 'withdrawn') return { apply: false, reason: 'withdrawn by the requester' };
   if (current === incoming) return { apply: false, reason: 'same status' };
-  if (current === 'sent') {
-    if (incoming === 'approved') return { apply: true, next: 'approved', ticket: ticketStatus === 'resolved' || ticketStatus === 'closed' ? 'none' : 'resolve' };
-    return { apply: true, next: incoming, ticket: 'none' };
-  }
-  if (current === 'approved' && incoming === 'cancelled') {
-    return { apply: true, next: 'cancelled', ticket: ticketStatus === 'resolved' ? 'reopen' : 'none' };
-  }
-  return { apply: false, reason: `not allowed after ${current}` };
+  if (current !== 'sent') return { apply: false, reason: `already ${current}` };
+  if (incoming === 'approved') return { apply: true, next: 'approved', ticket: ticketStatus === 'resolved' || ticketStatus === 'closed' ? 'none' : 'resolve' };
+  return { apply: true, next: 'declined', ticket: 'none' };
 }
 
 export type ReferralEvent = { eventId: string; type: 'wellbeing.referral_status'; ref: string; status: CallbackStatus };
@@ -83,7 +77,7 @@ export function parseReferralEvent(body: unknown): { ok: true; event: ReferralEv
   if (!eventId || eventId.length > 128) return { ok: false, message: 'eventId is required (1-128 characters)' };
   if (b.type !== 'wellbeing.referral_status') return { ok: false, message: "type must be 'wellbeing.referral_status'" };
   if (typeof d.ref !== 'string' || !REF_PATTERN.test(d.ref)) return { ok: false, message: 'data.ref is not a Helpdesk referral reference' };
-  if (!(CALLBACK_STATUSES as readonly unknown[]).includes(d.status)) return { ok: false, message: 'data.status must be approved, declined or cancelled' };
+  if (!(CALLBACK_STATUSES as readonly unknown[]).includes(d.status)) return { ok: false, message: 'data.status must be approved or declined' };
   return { ok: true, event: { eventId, type: 'wellbeing.referral_status', ref: d.ref, status: d.status as CallbackStatus } };
 }
 
@@ -211,15 +205,15 @@ export async function withdrawReferral(env: Bindings, ticket: TicketRow, referra
 
 /**
  * Apply a Team 16 status (callback or poll). `eventId` is stored with the referral change in one batch, so a
- * retried callback is answered "duplicate" and changes nothing. The ticket step runs after it and is idempotent
- * (resolve only an open ticket, re-open only a resolved one).
+ * retried callback is answered "duplicate" and changes nothing. The ticket step runs after it and only resolves
+ * a ticket that is still open.
  */
 export async function applyReferralStatus(
   env: Bindings,
   referral: ReferralRow,
   incoming: CallbackStatus,
   eventId: string | null,
-): Promise<{ outcome: 'applied' | 'ignored' | 'duplicate'; reason?: string; ticket?: 'resolve' | 'reopen' | 'none' }> {
+): Promise<{ outcome: 'applied' | 'ignored' | 'duplicate'; reason?: string; ticket?: 'resolve' | 'none' }> {
   const ticket = await getTicket(env.DB, referral.ticket_id);
   if (!ticket) return { outcome: 'ignored', reason: 'ticket deleted' };
   const effect = referralEffect(referral.status, incoming, ticket.status);
@@ -241,16 +235,10 @@ export async function applyReferralStatus(
     throw err;
   }
 
-  const text = REFERRAL_TEXT[effect.next as 'approved' | 'declined' | 'cancelled'];
+  const text = REFERRAL_TEXT[effect.next as 'approved' | 'declined'];
   if (effect.ticket === 'resolve') {
     const t = REFERRAL_TEXT.approved;
     await resolveTicket(env, ticket, { by: null, source: 'wellbeing', resolutionNote: t.resolution, historyNote: t.history, chat: t.chat });
-  } else if (effect.ticket === 'reopen') {
-    await env.DB.prepare(`UPDATE tickets SET status = 'in_progress', resolved_at = NULL, updated_at = datetime('now') WHERE id = ? AND status = 'resolved'`).bind(ticket.id).run();
-    await recordStatus(env.DB, ticket.id, 'resolved', 'in_progress', null, 'wellbeing', text.history);
-    await postSystemMessage(env.DB, ticket.id, text.chat);
-    const updated = await getTicket(env.DB, ticket.id);
-    if (updated) await publishEvent(env, 'ticket.status_changed', updated, { from: 'resolved', source: 'wellbeing' });
   } else {
     await recordStatus(env.DB, ticket.id, ticket.status, ticket.status, null, 'wellbeing', text.history);
     await env.DB.prepare(`UPDATE tickets SET updated_at = datetime('now') WHERE id = ?`).bind(ticket.id).run();
@@ -259,14 +247,21 @@ export async function applyReferralStatus(
   return { outcome: 'applied', ticket: effect.ticket };
 }
 
-/** Cron: ask Team 16 about referrals still waiting ('sent'), oldest first. Only when referrals are on. */
+/**
+ * Cron: ask Team 16 about referrals still waiting ('sent'), oldest first. Only when referrals are on.
+ * Team 16 deletes a referral 30 days after it arrived, so older ones are no longer asked about (they would only
+ * answer 404 and, oldest first, keep newer referrals out of the batch).
+ */
 export const REFERRAL_SYNC_BATCH = 20;
+export const REFERRAL_MAX_AGE_DAYS = 30;
 export async function syncSentReferrals(env: Bindings): Promise<{ checked: number; changed: number; failed: number; skipped?: string }> {
   if (!referralsEnabled(env)) return { checked: 0, changed: 0, failed: 0, skipped: 'referrals off' };
   const { results } = await env.DB.prepare(
-    `SELECT ${COLUMNS} FROM wellbeing_referrals WHERE status = 'sent' ORDER BY COALESCE(status_at, created_at) ASC LIMIT ?`,
+    `SELECT ${COLUMNS} FROM wellbeing_referrals
+     WHERE status = 'sent' AND created_at > datetime('now', ?)
+     ORDER BY COALESCE(status_at, created_at) ASC LIMIT ?`,
   )
-    .bind(REFERRAL_SYNC_BATCH)
+    .bind(`-${REFERRAL_MAX_AGE_DAYS} days`, REFERRAL_SYNC_BATCH)
     .all<ReferralRow>();
   let changed = 0;
   let failed = 0;

@@ -66,7 +66,7 @@ export type WellbeingSuggestion = {
   referral: { status: ReferralStatus; status_at: string | null } | null;
 };
 
-export type ReferralStatus = 'sent' | 'approved' | 'declined' | 'cancelled' | 'withdrawn';
+export type ReferralStatus = 'sent' | 'approved' | 'declined' | 'withdrawn';
 
 export type HistoryEntry = {
   from_status: string | null;
