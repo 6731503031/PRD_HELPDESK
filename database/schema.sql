@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   customer_id INTEGER NOT NULL,                    -- PRD: requester_id (Identity ref)
   assigned_agent_id INTEGER,                       -- PRD: assignee_id (Identity ref)
   resolution_note TEXT,
-  wellbeing_service_slug TEXT,                     -- A5 Team 16: public catalogue slug only
+  wellbeing_service_slug TEXT,                     -- A5 Team 16 contract 1.2 slug (no longer read; see 0006)
+  wellbeing_service_id TEXT,                       -- Team 16 contract 2.0 service id we suggested (srv_…)
   maintenance_work_order_id TEXT,                  -- PRD §6.1: the ONLY Maintenance data we store
   maintenance_status TEXT,                         -- last status received via webhook (display only)
   maintenance_status_at TEXT,
@@ -161,7 +162,8 @@ INSERT OR IGNORE INTO ticket_categories (id, name, description) VALUES
   (2, 'Hardware', 'Computer, printer, peripheral hardware problems'),
   (3, 'Software', 'Application bugs, installation, license issues'),
   (4, 'Account',  'Login, password, MFA, account access'),
-  (5, 'Facility', 'Classroom, building, facility issues');
+  (5, 'Facility', 'Classroom, building, facility issues'),
+  (6, 'Wellbeing', 'Stress, counselling and personal support (University Wellbeing)');
 
 INSERT OR IGNORE INTO tags (id, name) VALUES
   (1, 'urgent'), (2, 'bug'), (3, 'hardware'), (4, 'software'), (5, 'network');

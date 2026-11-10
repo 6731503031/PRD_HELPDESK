@@ -18,10 +18,10 @@ import { ApiError, badRequest, conflict, forbidden, notFound, parseId, readJson 
 import { recordSuggestion } from '../../ai/record';
 import { publishEvent } from '../events/publish';
 import { MESSAGES, postSystemMessage } from '../comments/templates';
+import { WELLBEING_ID_PATTERN, findService, listWellbeingServices } from '../wellbeing/client';
 import {
   PRIORITIES,
   STATUSES,
-  WELLBEING_SLUGS,
   canResolve,
   canTransition,
   checkLocation,
@@ -129,9 +129,14 @@ async function patchTicket(c: Context<AppEnv>) {
   if ('category_id' in fields && !(await categoryIsActive(c.env.DB, Number(fields.category_id)))) {
     throw badRequest('category_id does not exist or is disabled');
   }
-  if ('wellbeing_service_slug' in fields && fields.wellbeing_service_slug !== null &&
-      !WELLBEING_SLUGS.includes(fields.wellbeing_service_slug as never)) {
-    throw badRequest('wellbeing_service_slug is not in the catalogue');
+  if ('wellbeing_service_id' in fields && fields.wellbeing_service_id !== null) {
+    // Wellbeing contract 2.0: store the stable id only, and only one that Team 16 offers right now.
+    const sid = String(fields.wellbeing_service_id).trim();
+    if (!WELLBEING_ID_PATTERN.test(sid)) throw badRequest('wellbeing_service_id must look like srv_…');
+    const list = await listWellbeingServices(c.env.WELLBEING_API_URL);
+    if (!list.available) throw new ApiError(503, 'ServiceUnavailable', 'Wellbeing services are unavailable right now. Please try again later.');
+    if (!findService(list, sid)) throw badRequest('wellbeing_service_id is not in the Wellbeing catalogue');
+    fields.wellbeing_service_id = sid;
   }
 
   let newStatus: TicketStatus | null = null;

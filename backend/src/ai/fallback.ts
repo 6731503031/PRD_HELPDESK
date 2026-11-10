@@ -3,6 +3,7 @@
  * Owner: P4 (AI Triage & Admin)
  */
 import { PRIORITIES, type Priority } from '../modules/tickets/rules';
+import { routeWellbeing } from '../modules/wellbeing/routing';
 
 export const ROUTES = ['helpdesk', 'maintenance', 'it_support', 'wellbeing'] as const;
 export type Route = (typeof ROUTES)[number];
@@ -32,6 +33,9 @@ export type Suggestion = {
  *   Account   : password, login, mfa, account, locked                                         → route 'it_support'
  *   Hardware  : printer, laptop, computer, keyboard, mouse, monitor                           → route 'it_support'
  *   Software  : install, license, error, crash, app, software                                 → route 'it_support'
+ *   Wellbeing : checked LAST, with the same words as the Wellbeing card (modules/wellbeing/routing.ts, Thai too):
+ *               exam, thesis, stress, worried, lonely, เครียด, สอบ, … → route 'wellbeing'
+ *               Last, so "projector in the lecture hall" stays a Facility repair. Never illness or injury.
  *   none      : first category, route 'helpdesk'
  * Priority: urgency given → use it; else words like "urgent", "exam", "cannot", "broken" → 'high'; else 'medium'.
  * Example (PRD §8.3): "Air conditioner in classroom B-204 is not working" → Facility / high / maintenance
@@ -46,7 +50,10 @@ export function suggestFallback(input: TriageInput): Suggestion {
     { category: 'Software', route: 'it_support', words: ['install', 'license', 'error', 'crash', 'app', 'software'] },
   ];
   const matches = (word: string) => new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text);
-  const matchedGroup = groups.find((group) => group.words.some(matches));
+  const wellbeing = routeWellbeing(text);
+  const matchedGroup =
+    groups.find((group) => group.words.some(matches)) ??
+    (wellbeing.danger || wellbeing.serviceId ? { category: 'Wellbeing', route: 'wellbeing' as Route, words: [] } : undefined);
   const category = matchedGroup
     ? input.categories.find((item) => item.name.toLowerCase() === matchedGroup.category.toLowerCase())
     : undefined;

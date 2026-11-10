@@ -10,7 +10,6 @@ import { askAi } from '../src/ai/ai';
 import { triageRoutes } from '../src/ai/routes';
 import type { AppEnv } from '../src/core/env';
 import { handleError } from '../src/core/http';
-import { matchWellbeingSlug } from '../src/modules/wellbeing/routes';
 
 const categories = [
   { id: 1, name: 'Network' },
@@ -28,10 +27,22 @@ describe('fallback always answers', () => {
   });
 });
 
-describe('wellbeing keyword match (A5 bug fix)', () => {
-  it('matches whole words only — "will" is not "ill"', () => {
-    expect(matchWellbeingSlug('The printer will not print')).toBeNull();
-    expect(matchWellbeingSlug('I feel ill and need a medical certificate')).toBe('health-clinic');
+describe('fallback: Wellbeing category (Team 16 contract 2.0)', () => {
+  const withWellbeing = [...categories, { id: 6, name: 'Wellbeing' }];
+  it('routes stress to the Wellbeing category', () => {
+    const s = suggestFallback({ subject: 'Feeling stressed and lonely', description: 'I feel overwhelmed this month', categories: withWellbeing });
+    expect(s).toMatchObject({ category_id: 6, route: 'wellbeing' });
+  });
+  it('uses the same words as the Wellbeing card, Thai included', () => {
+    expect(suggestFallback({ subject: 'Need help', description: "I'm worried about my thesis", categories: withWellbeing })).toMatchObject({ category_id: 6, route: 'wellbeing' });
+    expect(suggestFallback({ subject: 'เครียดเรื่องสอบ', description: 'นอนไม่หลับมาหลายคืน', categories: withWellbeing }).route).toBe('wellbeing');
+  });
+  it('repairs and IT win over Wellbeing words', () => {
+    expect(suggestFallback({ subject: 'Projector in lecture hall not working', description: 'It turns off during my class', categories: withWellbeing }).route).toBe('maintenance');
+  });
+  it('never routes illness or injury to Wellbeing', () => {
+    const s = suggestFallback({ subject: 'I feel ill', description: 'I need a medical certificate for my injury', categories: withWellbeing });
+    expect(s.route).not.toBe('wellbeing');
   });
 });
 
