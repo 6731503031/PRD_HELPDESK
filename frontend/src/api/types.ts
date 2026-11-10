@@ -5,6 +5,16 @@ export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type User = { id: number; full_name: string; role: Role; email: string };
+
+/** GET /me/consent — PDPA privacy notice (backend/src/core/privacy.ts). */
+export type ConsentStatus = {
+  notice_version: string;
+  /** true only when the newest answer is "accepted" for the current version */
+  accepted: boolean;
+  accepted_at: string | null;
+  last_action: 'accepted' | 'withdrawn' | null;
+  last_action_at: string | null;
+};
 export type Category = { id: number; name: string; description: string | null; is_active: number };
 
 export type Ticket = {

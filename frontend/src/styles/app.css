@@ -743,3 +743,44 @@ fieldset { border: 0; margin: 0; padding: 0; }
   .shell--collapsed .side-nav a { padding-inline: var(--s3); }
   .mx { max-width: 88%; }
 }
+
+/* --------------------------------------------------------------------------
+   Privacy notice + consent (PDPA) — components/PrivacyNotice.tsx, pages/Privacy.tsx
+   -------------------------------------------------------------------------- */
+.page--narrow { max-width: 860px; }
+.privacy { display: grid; gap: var(--s4); min-width: 0; }
+.privacy__head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); flex-wrap: wrap; }
+.privacy__title { color: var(--navy); text-wrap: balance; }
+.privacy__lang { display: inline-flex; gap: var(--s1); flex: none; }
+.chip-btn {
+  font: 500 0.85rem/1.4 var(--sans); cursor: pointer; padding: 3px var(--s3); border-radius: 999px;
+  background: #fff; color: var(--muted); border: 1px solid var(--line);
+}
+.chip-btn:hover { color: var(--brand-dark); border-color: var(--brand); }
+.chip-btn.is-on { background: var(--brand-tint); color: var(--brand-dark); border-color: var(--brand); }
+.chip-btn:focus-visible { outline: none; box-shadow: var(--focus); }
+.privacy__summary { background: var(--info-bg); border: 1px solid #d5e1f3; border-radius: var(--r-md); padding: var(--s3) var(--s4); }
+.privacy__summary ul { margin: var(--s2) 0 0; padding-left: 1.2em; display: grid; gap: var(--s1); }
+.privacy__summary li::marker { color: var(--brand); }
+.privacy__body { display: grid; gap: var(--s4); }
+.privacy__body--scroll {
+  max-height: 300px; overflow-y: auto; padding: var(--s3) var(--s4);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--subtle);
+}
+.privacy__body--scroll:focus-visible { outline: none; box-shadow: var(--focus); }
+.privacy__section { display: grid; gap: var(--s2); }
+.privacy__section h3, .privacy__section h4 { font-family: var(--display); font-weight: 500; color: var(--navy); font-size: 1rem; }
+.privacy__section ul { margin: 0; padding-left: 1.2em; display: grid; gap: var(--s1); }
+.privacy__section p, .privacy__section li { max-width: 72ch; }
+.consent-check { padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm); background: #fff; }
+.consent-check:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+.sidebar__privacy { display: block; text-decoration: none; margin-bottom: var(--s1); }
+.sidebar__privacy:hover { color: var(--brand); text-decoration: underline; }
+.btn--danger { background: var(--urgent); border-color: var(--urgent); }
+.btn--danger:hover { background: #9e2a22; border-color: #9e2a22; }
+.privacy__section h4 { margin: 0; }
+/* The sign-in form grew with the notice: keep the intro at the top instead of centred against a tall form */
+@media (min-width: 861px) {
+  .login { align-items: start; }
+  .login__intro { position: sticky; top: var(--s7); }
+}

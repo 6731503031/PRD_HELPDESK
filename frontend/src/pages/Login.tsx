@@ -2,11 +2,14 @@
  * Sign-in (PRD FR-01). Helpdesk never handles credentials and verifies nothing (Identity stub, PRD §20).
  *   Requester: one button. First time only, a short form asks for a display name (+ optional contact email).
  *   Admin:     the separate link /#/staff, one click. It is not shown on the requester page.
+ * PDPA: the name form shows the privacy notice, and nothing is sent until "I agree" is ticked
+ * (consent before collection). The server refuses a profile without it.
  */
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
 import { useIdentity } from '../auth/identity';
 import { Logo } from '../components/Logo';
+import { ConsentCheck, PrivacyNotice, usePrivacyLang } from '../components/PrivacyNotice';
 import { ErrorNotice, Field, Notice } from '../components/ui';
 import { usePath } from '../lib/router';
 
@@ -16,6 +19,8 @@ export function Login() {
   const [step, setStep] = useState<'start' | 'form'>('start');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const [lang, setLang] = usePrivacyLang();
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
@@ -102,12 +107,14 @@ export function Login() {
               <Field id="guest-email" label="Contact email" hint="Optional. Used for contact only and not verified." error={fields.email}>
                 <input id="guest-email" className="input" type="email" value={email} maxLength={120} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!fields.email} />
               </Field>
+              <PrivacyNotice lang={lang} onLang={setLang} scroll headingLevel={3} />
+              <ConsentCheck id="guest-consent" lang={lang} checked={agreed} onChange={setAgreed} error={fields.privacy} />
               {error ? <ErrorNotice error={error} /> : null}
               <Notice tone="warn" title="Test mode">
                 <p className="small">This system does not verify identity (Identity stub, PRD §20).</p>
               </Notice>
               <div className="form-actions">
-                <button className="btn" type="submit" disabled={busy || name.trim().length < 2}>{busy ? 'Signing in…' : 'Continue'}</button>
+                <button className="btn" type="submit" disabled={busy || name.trim().length < 2 || !agreed}>{busy ? 'Signing in…' : 'Agree and continue'}</button>
                 <button className="btn btn--plain" type="button" onClick={() => setStep('start')} disabled={busy}>Back</button>
               </div>
             </form>
