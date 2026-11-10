@@ -57,3 +57,18 @@ export function nextTicketStatus(current: TicketStatus, effect: MaintenanceEffec
   if (current === 'resolved' || current === 'closed') return null;
   return current === effect.ticketStatus ? null : effect.ticketStatus;
 }
+
+/** How far a work order has got. Equal ranks are the same stage under two names. */
+const PROGRESS: Record<string, number> = { submitted: 1, reported: 1, assigned: 2, in_progress: 3, resolved: 4, completed: 4, closed: 5 };
+
+/**
+ * Sync (we ask Team 10): should the status we just read be applied? Only real forward progress, so a poll never
+ * repeats a history line or moves the repair backwards. Cancelled always counts once; a cancelled work order is
+ * never revived by a poll (the admin links a new one instead).
+ */
+export function shouldApplyPolledStatus(current: string | null, remote: string): boolean {
+  if (!mapWorkOrderStatus(remote) || current === remote) return false;
+  if (remote === 'cancelled') return true;
+  if (current === 'cancelled') return false;
+  return (PROGRESS[remote] ?? 0) > (PROGRESS[current ?? ''] ?? 0);
+}

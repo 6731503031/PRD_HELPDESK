@@ -26,7 +26,7 @@ export const MESSAGES = {
  */
 export function repairMessage(previous: string | null, next: string): string | null {
   const stage = (s: string | null) =>
-    s === 'in_progress' ? 'working' : s === 'completed' || s === 'closed' ? 'done' : s === 'cancelled' ? 'cancelled' : 'waiting';
+    s === 'in_progress' ? 'working' : s === 'resolved' || s === 'completed' || s === 'closed' ? 'done' : s === 'cancelled' ? 'cancelled' : 'waiting';
   if (stage(previous) === stage(next)) return null;
   switch (stage(next)) {
     case 'working':
