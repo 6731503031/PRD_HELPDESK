@@ -55,7 +55,9 @@ export function WellbeingCard({ ticket, staff, onChanged }: { ticket: TicketDeta
 
   if (!w.wellbeing_ticket) return null; // the backend decides; other tickets never show a service
   const s = w.suggested_service;
-  const referred = !!w.referral && (w.referral.status === 'sent' || w.referral.status === 'approved');
+  // The booking link stays visible in every state: after Wellbeing accepts a referral the student still books
+  // on their site, anonymously (Team 16 does not take our reference in booking links).
+  const accepted = w.referral?.status === 'approved';
 
   return (
     <div className="mt-5">
@@ -80,9 +82,11 @@ export function WellbeingCard({ ticket, staff, onChanged }: { ticket: TicketDeta
           <Referral w={w} ticket={ticket} staff={staff} onChanged={() => { void reload(); onChanged?.(); }} />
         )}
 
-        {!staff && !referred && (
+        {!staff && (
           <p className="mt-2">
-            <a className="btn btn--secondary btn--small" href={w.booking_url} target="_blank" rel="noreferrer">Book with Wellbeing ↗</a>
+            <a className={`btn ${accepted ? '' : 'btn--secondary '}btn--small`} href={w.booking_url} target="_blank" rel="noreferrer">
+              {accepted ? 'Book your session on the Wellbeing site ↗' : 'Book with Wellbeing ↗'}
+            </a>
           </p>
         )}
         <p className="muted small mt-2">
@@ -100,7 +104,7 @@ export function WellbeingCard({ ticket, staff, onChanged }: { ticket: TicketDeta
 
 const STATUS_TEXT: Record<ReferralStatus, string> = {
   sent: 'Sent to Wellbeing, waiting for them to accept.',
-  approved: 'Accepted by Wellbeing. Your booking details are on the Wellbeing site.',
+  approved: 'Accepted by Wellbeing. You can now book a session on their site, anonymously.',
   declined: 'Wellbeing could not take this referral.',
   withdrawn: 'You withdrew the referral.',
 };

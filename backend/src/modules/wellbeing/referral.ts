@@ -45,7 +45,7 @@ export const REFERRAL_TEXT = {
   approved: {
     history: 'Wellbeing accepted the referral',
     resolution: 'Referred to Wellbeing and accepted.',
-    chat: 'Wellbeing has accepted your referral. This ticket is now resolved. Your booking details are on the Wellbeing site.',
+    chat: 'Wellbeing has accepted your referral. This ticket is now resolved. You can now book a session on the Wellbeing site, anonymously.',
   },
   declined: { history: 'Wellbeing could not take the referral', chat: 'Wellbeing could not take this referral. You can book on their site, or send it again.' },
   withdrawn: { history: 'Referral withdrawn by the requester', chat: 'You withdrew the referral. Wellbeing will no longer send updates to Helpdesk.' },
