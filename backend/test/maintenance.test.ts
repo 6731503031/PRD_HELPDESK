@@ -47,6 +47,13 @@ describe('#6 Work Order status mapping (F14)', () => {
   it('never auto-resolves: completed leaves the status for the admin to confirm', () => {
     expect(mapWorkOrderStatus('completed')?.ticketStatus).toBeNull();
   });
+  it('accepts "submitted" and "resolved" from the Team 10 board without changing the ticket status', () => {
+    expect(mapWorkOrderStatus('submitted')?.ticketStatus).toBeNull();
+    expect(mapWorkOrderStatus('resolved')?.ticketStatus).toBeNull();
+  });
+  it('gives "resolved" its own history label, different from "completed"', () => {
+    expect(mapWorkOrderStatus('resolved')?.label).not.toBe(mapWorkOrderStatus('completed')?.label);
+  });
   it('rejects unknown statuses', () => {
     expect(mapWorkOrderStatus('teleported')).toBeNull();
   });
