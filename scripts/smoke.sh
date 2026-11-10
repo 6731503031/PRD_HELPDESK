@@ -16,6 +16,12 @@ code() { curl -s -o /tmp/smoke_body -w '%{http_code}' "$@"; }
 
 check "health"                     200 "$(code "$BASE/health")"
 check "config"                     200 "$(code "$BASE/config")"
+echo "--- Team 16 reads campus contacts (Wellbeing brief Part A) ---"
+check "contacts → 200"                       200 "$(code "$BASE/contacts" -H 'X-Correlation-Id: team16-v1-0001')"
+check "contacts: correlation id echoed"      team16-v1-0001 "$(curl -s -D - -o /dev/null "$BASE/contacts" -H 'X-Correlation-Id: team16-v1-0001' | tr -d '\r' | awk -F': ' 'tolower($1)=="x-correlation-id"{print $2}')"
+check "contacts: ?type=emergency only"       ok "$(curl -s "$BASE/contacts?type=emergency" | python3 -c 'import sys,json;d=json.load(sys.stdin);print("ok" if d and all(x["type"]=="emergency" for x in d) else "bad")')"
+check "contacts: bad type → 400"             400 "$(code "$BASE/contacts?type=nope")"
+check "contacts: POST → 405"                 405 "$(code -X POST "$BASE/contacts")"
 check "no auth → 401"              401 "$(code "$BASE/tickets/me")"
 check "invalid JSON → 400"         400 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{bad')"
 check "missing fields → 422"       422 "$(code -X POST "$BASE/tickets" "${ALICE[@]}" "${J[@]}" -d '{}')"
