@@ -28,6 +28,9 @@ crons = ["*/15 * * * *"]
 [vars]
 ENVIRONMENT = "development"
 WELLBEING_API_URL = "https://wellbeing-intake.vercel.app/api/v1"
+# Referral to Wellbeing (Team 16): "on" shows the "Send to Wellbeing" button. Keep "off" until Team 16 has built
+# POST/GET /referrals and the callback, and migration 0007 has run (npm run db:remote:referrals).
+WELLBEING_REFERRALS = "off"
 MAINTENANCE_API_URL = ""
 # Team 10 "report a repair" page for the admin button; may contain {ticketRef} (replaced by the ticket number)
 MAINTENANCE_PORTAL_URL = ""
@@ -38,6 +41,8 @@ EVENT_HUB_URL = ""
 #   wrangler secret put MAINTENANCE_API_KEY          (Team 10's HELPDESK_API_KEY)
 #   wrangler secret put MAINTENANCE_WEBHOOK_SECRET   (Team 10's HELPDESK_WEBHOOK_SECRET)
 #   wrangler secret put EVENT_SIGNING_SECRET
+#   wrangler secret put WELLBEING_API_KEY            (Bearer token for Team 16's referral API, if they want one)
+#   wrangler secret put WELLBEING_WEBHOOK_SECRET     (HMAC key shared with Team 16 for referral callbacks)
 # Local dev: put them in .dev.vars (git-ignored)
 
 [[d1_databases]]

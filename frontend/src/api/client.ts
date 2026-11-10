@@ -111,8 +111,11 @@ export const api = {
       post({}),
     ).then((r) => r.data),
 
-  // wellbeing (Team 16, contract 2.0): read-only, nothing about the ticket is sent to Team 16
+  // wellbeing (Team 16, contract 2.0): the catalogue is read-only, nothing about the ticket is sent to Team 16
   wellbeingSuggestion: (id: number) => request<WellbeingSuggestion>(`/tickets/${id}/wellbeing-suggestion`),
+  /** Referral (requester only, with consent): sends a random reference + service id, never the ticket. */
+  sendWellbeingReferral: (id: number) => request<{ data: { status: string } }>(`/tickets/${id}/wellbeing-referral`, post({ consent: true })),
+  withdrawWellbeingReferral: (id: number) => request<{ data: { status: string } }>(`/tickets/${id}/wellbeing-referral`, { method: 'DELETE' }),
 
   // triage + admin (P4)
   suggest: (input: { subject: string; description: string; urgency?: Priority }) =>

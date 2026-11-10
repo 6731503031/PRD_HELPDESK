@@ -127,6 +127,25 @@ CREATE TABLE IF NOT EXISTS privacy_consents (
 CREATE INDEX IF NOT EXISTS idx_privacy_consents_user ON privacy_consents(user_id, id);
 
 -- ---------------------------------------------------------------------
+-- Referrals to Wellbeing (Team 16) — migration 0007. No personal data: `ref` is random.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS wellbeing_referrals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_id INTEGER NOT NULL,
+  ref TEXT NOT NULL UNIQUE,
+  service_id TEXT,
+  status TEXT NOT NULL CHECK (status IN ('sent','approved','declined','cancelled','withdrawn')),
+  wellbeing_id TEXT,
+  consent_at TEXT NOT NULL,
+  status_at TEXT,
+  withdrawn_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_wellbeing_referrals_ticket ON wellbeing_referrals(ticket_id, id);
+CREATE INDEX IF NOT EXISTS idx_wellbeing_referrals_status ON wellbeing_referrals(status);
+
+-- ---------------------------------------------------------------------
 -- Inbound webhook dedupe (PRD §18: duplicate event handling)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS processed_events (

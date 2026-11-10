@@ -24,7 +24,9 @@
     "wt:open": "bash scripts/worktree.sh open",
     "wt:list": "bash scripts/worktree.sh list",
     "wt:rm": "bash scripts/worktree.sh rm",
-    "db:remote:privacy": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0006_privacy_consents.sql"
+    "db:remote:privacy": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0006_privacy_consents.sql",
+    "db:local:referrals": "wrangler d1 execute helpdesk-db --local --file=./database/migrations/0007_wellbeing_referrals.sql",
+    "db:remote:referrals": "wrangler d1 execute helpdesk-db --remote --file=./database/migrations/0007_wellbeing_referrals.sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240605.0",

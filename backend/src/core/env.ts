@@ -11,6 +11,12 @@ export type Bindings = {
   AI?: Ai;
   ENVIRONMENT: string;
   WELLBEING_API_URL: string;
+  /** 'on' = requesters may send a referral to Wellbeing (Team 16). Anything else hides it. Off until Team 16 is ready. */
+  WELLBEING_REFERRALS?: string;
+  /** Secret (optional): Bearer token for Team 16's referral API. `wrangler secret put WELLBEING_API_KEY` */
+  WELLBEING_API_KEY?: string;
+  /** Secret: shared HMAC key for Team 16 referral callbacks. `wrangler secret put WELLBEING_WEBHOOK_SECRET` */
+  WELLBEING_WEBHOOK_SECRET?: string;
   /** Team 10 Maintenance base URL, e.g. https://…/api/v1 — empty until Team 10 confirms. */
   MAINTENANCE_API_URL: string;
   /** Link to Team 10's report-a-repair page, shown to the admin as a button. Empty until Team 10 gives it (see core/config.ts). */
