@@ -172,6 +172,7 @@ PRD กลางบังคับ 3 หน้าหลัก: **แจ้งป
 | POST | `/tickets/:id/link-maintenance` | admin | ผูกใบงานเอง (ทางสำรอง) | P3 | ✅ |
 | POST | `/webhooks/maintenance` | Team 10 (HMAC) | รับสถานะงานซ่อม | P3 | ✅ |
 | GET | `/wellbeing/services` | ทุกคน | catalogue Team 16 | P3 | ✅ |
+| GET | `/contacts` | ทุกคน (Team 16 เรียก) | เบอร์ติดต่อในมหาวิทยาลัย (`?type=emergency\|service\|support`) ตามรูปแบบใน brief ของ Team 16 · เบอร์ยังเป็นเบอร์สมมติ `verified: false` | P3 | ✅ |
 | POST | `/tickets/suggest` | ล็อกอิน | AI แนะนำ | P4 | ⏳ |
 | GET | `/admin/stats` | admin | จำนวนคำร้อง | P4 | ⏳ |
 | POST / PATCH | `/admin/categories[/:id]` | admin | จัดการหมวด | P4 | ⏳ |

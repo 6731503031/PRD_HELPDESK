@@ -24,6 +24,7 @@ import { maintenanceRoutes } from './modules/maintenance/routes';
 import { triageRoutes } from './ai/routes';
 import { adminRoutes } from './modules/admin/routes';
 import { wellbeingRoutes } from './modules/wellbeing/routes';
+import { contactsRoutes } from './modules/contacts/routes';
 import { runEscalation } from './modules/events/escalation';
 
 // ---------- API ----------
@@ -53,6 +54,7 @@ api.route('/', ticketRoutes);      // P1
 api.route('/', commentRoutes);     // P2
 api.route('/', maintenanceRoutes); // P3
 api.route('/', wellbeingRoutes);   // P3
+api.route('/', contactsRoutes);    // P3 — Team 16 reads campus contacts (public)
 api.route('/', adminRoutes);       // P4
 
 // ---------- App ----------
