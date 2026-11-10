@@ -28,8 +28,9 @@ crons = ["*/15 * * * *"]
 [vars]
 ENVIRONMENT = "development"
 WELLBEING_API_URL = "https://wellbeing-intake.vercel.app/api/v1"
-# Referral to Wellbeing (Team 16): "on" shows the "Send to Wellbeing" button. Keep "off" until Team 16 has built
-# POST/GET /referrals and the callback, and migration 0007 has run (npm run db:remote:referrals).
+# Referral to Wellbeing (Team 16): "on" shows the "Send to Wellbeing" button.
+# Production turns it ON in `npm run deploy` (package.json). Local dev keeps it "off", so a developer machine never
+# creates referrals in Team 16's real system. To switch production off again, remove that --var and redeploy.
 WELLBEING_REFERRALS = "off"
 MAINTENANCE_API_URL = ""
 # Team 10 "report a repair" page for the admin button; may contain {ticketRef} (replaced by the ticket number)
