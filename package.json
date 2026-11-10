@@ -8,7 +8,7 @@
     "dev": "npm run build:web && wrangler dev",
     "dev:web": "vite --config frontend/vite.config.ts",
     "build:web": "vite build --config frontend/vite.config.ts",
-    "deploy": "npm run build:web && wrangler deploy --var ENVIRONMENT:production --var MAINTENANCE_API_URL:https://maintenance-team10.vercel.app/api/v1 --var MAINTENANCE_PORTAL_URL:https://maintenance-team10-kwxt.vercel.app/",
+    "deploy": "npm run build:web && wrangler deploy --var ENVIRONMENT:production --var MAINTENANCE_API_URL:https://maintenance-team10.vercel.app/api/v1 --var MAINTENANCE_PORTAL_URL:https://maintenance-team10-kwxt.vercel.app/ --var WELLBEING_REFERRALS:on",
     "typecheck": "tsc --noEmit -p backend && tsc --noEmit -p frontend",
     "test": "vitest run",
     "test:watch": "vitest",
