@@ -4,7 +4,7 @@
  *   Requester: UC-04 follow status + repair progress · UC-05 edit while still open · UC-13 chat (button "แชท")
  *   Admin:     ① UC-07 triage → ② UC-08 send to Team 10 → ③ UC-09 resolve — in the centre column, under the problem
  */
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 import type { Category, Priority, TicketDetail as Detail } from '../api/types';
 import { isStaff, useIdentity } from '../auth/identity';
@@ -17,7 +17,22 @@ import { ErrorNotice, Field, Loading, Notice, Panel, PriorityText, StatusBadge, 
 
 export function TicketDetail({ id, onChanged }: { id: number; onChanged?: () => void }) {
   const { user } = useIdentity();
-  const { data: t, error, loading, reload } = useAsync(() => api.ticket(id), [id, user?.id]);
+  const { data: t, error, loading, reload, refresh } = useAsync(() => api.ticket(id), [id, user?.id]);
+
+  // Status history and repair progress change on the server (Team 10 webhook) while this page is open.
+  // Quiet refresh: what is on screen stays until the new data arrives, and form fields keep their values.
+  useEffect(() => {
+    if (error) return;
+    const tick = () => {
+      if (!document.hidden) void refresh();
+    };
+    const timer = window.setInterval(tick, 15000);
+    document.addEventListener('visibilitychange', tick); // back on the tab: update at once
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [error, refresh]);
 
   if (loading && !t) return <Loading variant="detail" />;
   if (error) return <ErrorNotice error={error} />;
