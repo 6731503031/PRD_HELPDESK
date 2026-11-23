@@ -7,7 +7,7 @@
  * Without a referral Helpdesk sends nothing to Team 16; the student books on Team 16's own site, anonymously.
  * Wording never says the requester "is a Wellbeing client": we only suggest a service.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import type { ReferralStatus, TicketDetail, WellbeingSuggestion } from '../api/types';
 import { formatDateTime } from '../lib/format';
@@ -15,7 +15,31 @@ import { useAsync } from '../lib/useAsync';
 import { ErrorNotice, Notice } from './ui';
 
 export function WellbeingCard({ ticket, staff, onChanged }: { ticket: TicketDetail; staff: boolean; onChanged?: () => void }) {
-  const { data: w, loading, reload } = useAsync(() => api.wellbeingSuggestion(ticket.id), [ticket.id, ticket.updated_at]);
+  const { data: w, loading, reload, refresh } = useAsync(() => api.wellbeingSuggestion(ticket.id), [ticket.id, ticket.updated_at]);
+
+  // Near real time for Team 16: while a referral waits for their decision, check every 5 s (only when the tab is
+  // visible). Their callback updates our database at once, so the page follows within about 5 s, no reload needed.
+  const referralStatus = w?.referral?.status;
+  const waiting = referralStatus === 'sent';
+  useEffect(() => {
+    if (!waiting) return;
+    const tick = () => {
+      if (!document.hidden) void refresh();
+    };
+    const timer = window.setInterval(tick, 5000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [waiting, refresh]);
+  // When the decision arrives, reload the whole ticket at once: status, history and chat all change with it.
+  const lastStatus = useRef(referralStatus);
+  useEffect(() => {
+    if (lastStatus.current === 'sent' && referralStatus && referralStatus !== 'sent') onChanged?.();
+    if (referralStatus) lastStatus.current = referralStatus;
+  }, [referralStatus, onChanged]);
+
   // While loading a Wellbeing ticket, hold the card's place so the page does not jump when it arrives.
   const expected = ticket.category_name?.toLowerCase() === 'wellbeing' || ticket.ai_route === 'wellbeing';
   if (!w) {
